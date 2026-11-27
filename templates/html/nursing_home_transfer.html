@@ -1,0 +1,117 @@
+{% extends "_base_contract.html" %}
+
+{% block intro_sentence %}
+아래 노인요양시설(장기요양기관)에 대하여 양도인과 양수인은 상호 합의하에 다음과 같이 양도·양수 계약을 체결한다.
+{% endblock %}
+
+{% block property_section %}
+<div class="section-title">1. 양도·양수 대상 요양시설의 표시</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 13%;" /><col style="width: 37%;" /><col style="width: 14%;" /><col style="width: 36%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">시 설 명 칭</td>
+    <td class="val-left emph-addr">{{ facility_name }}</td>
+    <td class="lbl-tight">장기요양기관기호</td>
+    <td class="val-left">{{ facility_reg_no }}</td>
+  </tr>
+  <tr>
+    <td class="lbl">소 재 지</td>
+    <td colspan="3" class="val-left emph-addr">{{ address }}</td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">인가정원 / 현원</td>
+    <td class="val-left val-bold">{{ facility_capacity }}</td>
+    <td class="lbl-tight">구조·용도 / 면적</td>
+    <td class="val-left">{{ building_structure }}{% if building_use %} ({{ building_use }}){% endif %}{% if lease_area or building_area %} / {{ lease_area or building_area }} ㎡{% endif %}</td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">양 도 범 위</td>
+    <td colspan="3" class="val-left">{{ lease_part if lease_part else '노인의료복지시설 설치신고·장기요양기관 지정 지위, 시설·비품 및 운영권 일체' }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block payment_section %}
+<div class="section-title">2. 양도대금 및 유보금(에스크로) 지급시기</div>
+<div class="article-intro">
+  <strong>제1조 [총 양도대금 및 지급방법]</strong>
+  양도인과 양수인은 총 양도대금 및 행정처분 대비 유보금(에스크로)을 다음과 같이 약정한다.
+</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 13%;" /><col style="width: 30%;" /><col style="width: 32%;" /><col style="width: 8.5%;" /><col style="width: 16.5%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">총 양도대금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ deposit_kr }}</td>
+    <td colspan="3" class="val-left emph-money">원정 (&nbsp;{{ deposit_won }}&nbsp;)</td>
+  </tr>
+  <tr>
+    <td class="lbl">계 약 금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ down_payment_kr }}</td>
+    <td class="val-left">원정은 계약시에 지불하고 영수함.</td>
+    <td class="lbl-tight">영수자</td>
+    <td>
+      <div class="seal-cell">
+        <span>{{ down_receipt_person }}</span>
+        <span class="seal-mark">(인)</span>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">중 도 금</td>
+    <td class="val-left val-bold">ㅡ금&nbsp;{{ interim_payment_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;&nbsp;<span class="date-y">{{ interim_year }}</span>년&nbsp;<span class="date-md">{{ interim_month }}</span>월&nbsp;<span class="date-md">{{ interim_day }}</span>일에 지불하며,
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">잔&nbsp;&nbsp;&nbsp;&nbsp;금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ balance_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;<span class="emph-date"><span class="date-y">{{ balance_year }}</span>년&nbsp;<span class="date-md">{{ balance_month }}</span>월&nbsp;<span class="date-md">{{ balance_day }}</span>일</span>(양도기준일)에 지불한다.
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">유 보 금<br/>(에스크로)</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ escrow_amount_kr }}{% if escrow_amount_comma %} (₩ {{ escrow_amount_comma }}){% endif %}</td>
+    <td colspan="3" class="val-left">
+      원정은 잔금일로부터 <span class="emph-date">{{ escrow_period if escrow_period else '6개월' }}</span>간 유보({{ escrow_condition if escrow_condition else '현지조사·부당청구 환수·행정처분 대비 정산 후 지급' }}).
+    </td>
+  </tr>
+</table>
+<div class="sub-note">
+  총 양도대금 = 계약금 + 중도금 + 잔금 + 유보금(에스크로)이며, 모든 지급은 개업공인중개사 입회하에 진행한다.
+</div>
+{% endblock %}
+
+{% block articles_section %}
+<div class="articles-box">
+  <div class="article-item">
+    <strong>제2조 [지위승계 및 인허가 변경 협조]</strong>
+    양도인은 양도기준일(<span class="emph-date">{{ handover_date_kr }}</span>)까지 관할 시·군·구청 및 국민건강보험공단의 노인의료복지시설 설치신고 변경 및 장기요양기관 지정승계에 필요한 일체의 서류 제출과 행정절차에 적극 협조한다.
+  </div>
+  <div class="article-item">
+    <strong>제3조 [행정처분·부당청구 면책 및 유보금 정산]</strong>
+    양도기준일 이전 운영기간 중 발생한 사유로 현지조사, 장기요양급여 부당청구 환수처분, 과징금, 업무정지 등 행정처분이 부과될 경우 그 민·형사 및 행정적 책임은 전액 양도인에게 귀속되며, 양수인은 제1조의 유보금에서 해당 손해액 및 환수액을 우선 공제·정산할 수 있다.
+  </div>
+  <div class="article-item">
+    <strong>제4조 [종사자 노무·퇴직금 및 4대보험 정산]</strong>
+    양도인은 양도기준일 이전까지 발생한 전체 종사자(요양보호사, 간호인력, 사회복지사, 조리원 등)의 급여, 퇴직급여 충당금, 미사용 연차수당 및 4대보험료를 전액 정산 완료하고 정산 증빙을 양수인에게 교부한다.
+  </div>
+  <div class="article-item">
+    <strong>제5조 [수급자 승계 및 급여비용 정산]</strong>
+    양도기준일 이전 입소 어르신(수급자)에 대한 본인부담금 및 공단 장기요양급여 청구권은 양도인에게, 양도기준일 이후 발생분은 양수인에게 귀속되며, 양도인은 수급자 및 보호자 이용계약 승계에 성실히 협조한다.
+  </div>
+  <div class="article-item">
+    <strong>제6조 [시설·비품 인계 및 미지급 채무 면책]</strong>
+    양도인은 의료침대·휠체어·급식설비·차량 등 시설 및 비품 일체를 현 상태로 인계하며, 양도기준일 이전 발생한 거래처 외상·리스·임차료·공과금·조세 등 일체의 채무는 양도인이 책임지고 변제한다.
+  </div>
+  <div class="article-item">
+    <strong>제7조 [계약의 해제·손해배상 및 중개보수]</strong>
+    중도금(없을 때는 잔금) 지급 전까지 양도인은 계약금 배액 상환, 양수인은 계약금 포기로 해제할 수 있으며, 불이행 시 서면 최고 후 해제 및 계약금 기준 손해배상을 청구한다. 중개보수는 쌍방이 각각 지급하며 개업공인중개사는 확인·설명서 및 공제증서 사본을 교부한다.
+  </div>
+</div>
+{% endblock %}

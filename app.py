@@ -1,0 +1,2171 @@
+"""부동산·요양원 통합 계약서 작성 및 출력 웹 앱 (3단계: 실무 완성형).
+
+- 6대 정식 A4 서식(전세·매매·월세·상가·요양원·권리금) + 주요사항 큰 글씨 강조 + 컬러/흑백 출력 모드
+- 로컬 SQLite DB(data/contracts.db) 임시저장 / 최종 누적 저장 / 사이드바 목록·검색·복사·삭제
+- 증빙서류 카메라 촬영 & 갤러리 업로드 보관(data/attachments/{계약ID}/) + Gemini AI 자동 채우기
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
+
+import streamlit as st
+import streamlit.components.v1 as components
+
+from utils.ai_extractor import (
+    delete_gemini_api_key_from_secrets,
+    extract_contract_fields_from_documents,
+    get_gemini_api_key,
+    mask_api_key,
+    save_gemini_api_key_to_secrets,
+)
+from utils.doc_generator import (
+    HWPX_PLACEHOLDER_GUIDE,
+    ensure_templates,
+    generate_docx,
+    generate_hwpx,
+    generate_pdf,
+    has_custom_hwpx_template,
+    render_html,
+    reset_custom_hwpx_template,
+    save_custom_hwpx_template,
+)
+from utils.formatter import (
+    CONTRACT_TYPE_META,
+    MAX_INLINE_CLAUSE_LINES,
+    build_contract_context,
+    calculate_balance,
+    calculate_lease_duration,
+    format_date_kr,
+    format_price_per_pyeong,
+    format_pyeong,
+    format_won,
+    get_type_meta,
+    number_to_korean,
+    substitute_clause_variables,
+)
+from utils.storage import (
+    ATTACHMENT_CATEGORIES,
+    delete_attachment,
+    delete_contract,
+    ensure_contract_record_exists,
+    generate_contract_id,
+    init_db,
+    list_attachments,
+    list_contracts,
+    load_contract,
+    read_attachment_bytes,
+    save_attachment,
+    save_contract,
+)
+
+BASE_DIR = Path(__file__).resolve().parent
+CLAUSES_PATH = BASE_DIR / "data" / "clauses.json"
+
+# 계약 유형별 전용 테마 컬러 (선택 카드·배지·드롭다운 강조용)
+CONTRACT_TYPE_THEMES: dict[str, dict[str, str]] = {
+    "housing_jeonse": {
+        "primary": "#1D4ED8",
+        "hover": "#1E40AF",
+        "soft_bg": "#EFF6FF",
+        "badge_bg": "#DBEAFE",
+    },
+    "real_estate_sale": {
+        "primary": "#1E3A8A",
+        "hover": "#172554",
+        "soft_bg": "#EEF2FF",
+        "badge_bg": "#E0E7FF",
+    },
+    "housing_wolse": {
+        "primary": "#0F766E",
+        "hover": "#115E59",
+        "soft_bg": "#F0FDFA",
+        "badge_bg": "#CCFBF1",
+    },
+    "commercial_lease": {
+        "primary": "#6D28D9",
+        "hover": "#5B21B6",
+        "soft_bg": "#F5F3FF",
+        "badge_bg": "#EDE9FE",
+    },
+    "nursing_home_transfer": {
+        "primary": "#047857",
+        "hover": "#065F46",
+        "soft_bg": "#ECFDF5",
+        "badge_bg": "#D1FAE5",
+    },
+    "premium_rights": {
+        "primary": "#B45309",
+        "hover": "#92400E",
+        "soft_bg": "#FFFBEB",
+        "badge_bg": "#FEF3C7",
+    },
+    "land_sale": {
+        "primary": "#78350F",
+        "hover": "#451A03",
+        "soft_bg": "#FDF8F3",
+        "badge_bg": "#FDE68A",
+    },
+}
+
+st.set_page_config(
+    page_title="통합계약서 — 부동산·요양원 전문 작성기",
+    page_icon="📑",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown(
+    """
+    <style>
+      .block-container {
+        padding-top: 0.9rem;
+        padding-bottom: 2rem;
+        max-width: 1620px;
+      }
+      .app-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 1.05rem 1.35rem;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #0b1c3d 0%, #163368 55%, #1d4ed8 100%);
+        border-bottom: 4px solid #f59e0b;
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+        color: #f8fafc;
+        margin-bottom: 0.95rem;
+      }
+      .app-header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+      }
+      .app-header-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1.5px solid rgba(251, 191, 36, 0.65);
+        font-size: 1.65rem;
+        flex-shrink: 0;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      }
+      .app-header-title {
+        margin: 0;
+        font-size: 1.95rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        line-height: 1.15;
+        color: #ffffff;
+      }
+      .app-header-sub {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: #dbeafe;
+        letter-spacing: 0.01em;
+      }
+      .app-header-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 700;
+        backdrop-filter: blur(4px);
+      }
+      .type-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 0.38rem;
+      }
+      .type-active-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 11px;
+        border-radius: 999px;
+        color: #ffffff;
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .type-hint-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+      .kr-amount-hint {
+        font-size: 0.82rem;
+        color: #1d4ed8;
+        font-weight: 600;
+        margin-top: -0.4rem;
+        margin-bottom: 0.45rem;
+      }
+      .doc-id-pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #0f172a;
+      }
+      .sb-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.5rem 0.6rem;
+        margin-bottom: 0.4rem;
+        background: #ffffff;
+      }
+      @media (max-width: 768px) {
+        .block-container {
+          padding-left: 0.6rem;
+          padding-right: 0.6rem;
+        }
+        .app-header-title {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+@st.cache_data
+def _load_clauses_library_cached(file_mtime: float) -> dict[str, Any]:
+    with CLAUSES_PATH.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_clauses_library() -> dict[str, Any]:
+    """data/clauses.json 수정 시각(mtime)을 캐시 키로 사용해 변경 즉시 드롭다운에 반영한다."""
+    mtime = CLAUSES_PATH.stat().st_mtime if CLAUSES_PATH.exists() else 0.0
+    return _load_clauses_library_cached(mtime)
+
+
+def get_ordered_type_keys(clauses_lib: dict[str, Any]) -> list[str]:
+    """CONTRACT_TYPE_META 기준 7대 정식 계약 유형 순서를 보장한다."""
+    ordered = [k for k in CONTRACT_TYPE_META if k in clauses_lib]
+    for k in clauses_lib:
+        if k not in ordered:
+            ordered.append(k)
+    return ordered
+
+
+def get_configured_pin() -> str:
+    try:
+        pin = st.secrets.get("APP_PIN", "0000")
+        return str(pin).strip() or "0000"
+    except Exception:
+        return "0000"
+
+
+def render_pin_lock_screen() -> None:
+    expected_pin = get_configured_pin()
+    _, center, _ = st.columns([1, 1.2, 1])
+    with center:
+        st.markdown("## 🔐 부동산·요양원 통합 계약서 작성기")
+        st.info(
+            "보안을 위해 4자리 PIN 번호를 입력해 주세요. (초기 기본값: `0000`, "
+            "`.streamlit/secrets.toml`의 `APP_PIN`으로 변경 가능)"
+        )
+        with st.form("pin_login_form", clear_on_submit=False):
+            entered = st.text_input("4자리 PIN 번호", type="password", max_chars=4, placeholder="••••")
+            submitted = st.form_submit_button("잠금 해제", use_container_width=True, type="primary")
+            if submitted:
+                if entered == expected_pin:
+                    st.session_state["authenticated"] = True
+                    st.rerun()
+                else:
+                    st.error("PIN 번호가 일치하지 않습니다.")
+
+        st.caption(
+            "🛡️ 로컬 전용 보관: 저장된 계약서와 증빙서류는 외부 클라우드가 아닌 "
+            "내 PC의 `data/contracts.db` 및 `data/attachments/` 폴더에만 안전하게 저장됩니다."
+        )
+
+
+def _empty_form_values() -> dict[str, Any]:
+    """모든 텍스트는 '', 숫자는 0으로 완전히 비워진 초기 폼 사전."""
+    today = date.today()
+    balance_dt = today + timedelta(days=45)
+    lease_end_dt = date(balance_dt.year + 2, balance_dt.month, balance_dt.day)
+
+    return {
+        "address": "",
+        "land_category": "",
+        "land_share_ratio": "",
+        "land_area": "",
+        "land_zoning": "",
+        "land_status": "",
+        "extra_parcels": "",
+        "building_structure": "",
+        "building_use": "",
+        "building_area": "",
+        "lease_part": "",
+        "lease_area": "",
+        "business_type": "",
+        "facility_name": "",
+        "facility_capacity": "",
+        "facility_reg_no": "",
+        "store_name": "",
+        "new_lease_summary": "",
+        "deposit": 0,
+        "down_payment": 0,
+        "interim_payment": 0,
+        "balance": 0,
+        "loan_assumption": 0,
+        "lease_deposit_assumption": 0,
+        "monthly_rent": 0,
+        "monthly_rent_day": "",
+        "rent_pay_type": "선불",
+        "vat_type": "부가가치세 별도",
+        "management_fee": 0,
+        "management_fee_note": "",
+        "escrow_amount": 0,
+        "escrow_period": "",
+        "escrow_condition": "",
+        "auto_balance": True,
+        "down_receipt_person": "",
+        "use_interim_date": False,
+        "interim_date": today + timedelta(days=20),
+        "balance_date": balance_dt,
+        "handover_date": balance_dt,
+        "lease_end_date": lease_end_dt,
+        "contract_date": today,
+        "attachment_note": "",
+        "deposit_account": "",
+        "lessor_address": "",
+        "lessor_rrn": "",
+        "lessor_phone1": "",
+        "lessor_phone2": "",
+        "lessor_name": "",
+        "lessee_address": "",
+        "lessee_rrn": "",
+        "lessee_phone1": "",
+        "lessee_phone2": "",
+        "lessee_name": "",
+        "broker1_office": "",
+        "broker1_address": "",
+        "broker1_rep": "",
+        "broker1_reg_no": "",
+        "broker1_phone": "",
+        "broker1_associate": "",
+        "use_co_broker": False,
+        "broker2_office": "",
+        "broker2_address": "",
+        "broker2_rep": "",
+        "broker2_reg_no": "",
+        "broker2_phone": "",
+        "broker2_associate": "",
+    }
+
+
+def _sample_form_values(contract_type: str) -> dict[str, Any]:
+    """계약 유형별 비식별 실무 예시 데이터."""
+    data = _empty_form_values()
+    today = date.today()
+    balance_dt = today + timedelta(days=45)
+    lease_end_dt = date(balance_dt.year + 2, balance_dt.month, balance_dt.day)
+
+    data.update(
+        {
+            "down_receipt_person": "홍길동",
+            "balance_date": balance_dt,
+            "handover_date": balance_dt,
+            "lease_end_date": lease_end_dt,
+            "contract_date": today,
+            "attachment_note": "확인설명서 및 공제증서",
+            "deposit_account": "기업 010-0000-0000 홍길동 (예시)",
+            "lessor_address": "인천광역시 서구 가좌로 123, 201동 604호 (예시)",
+            "lessor_rrn": "750101-1******",
+            "lessor_phone1": "010-0000-1111",
+            "lessor_phone2": "",
+            "lessor_name": "홍길동",
+            "lessee_address": "경기도 남양주시 오남읍 진건오남로 781-17, 103동 603호 (예시)",
+            "lessee_rrn": "830723-1******",
+            "lessee_phone1": "010-0000-2222",
+            "lessee_phone2": "",
+            "lessee_name": "김철수",
+            "broker1_office": "한빛공인중개사사무소",
+            "broker1_address": "경기도 남양주시 오남읍 진건오남로 756길 상가 102호",
+            "broker1_rep": "박중개",
+            "broker1_reg_no": "가3622-08-0000",
+            "broker1_phone": "031-575-0000",
+            "broker1_associate": "",
+            "use_co_broker": True,
+            "broker2_office": "신한공인중개사사무소",
+            "broker2_address": "서울특별시 중랑구 망우로 307 B106호",
+            "broker2_rep": "이공동",
+            "broker2_reg_no": "11260-2015-00000",
+            "broker2_phone": "010-0000-3333",
+            "broker2_associate": "",
+        }
+    )
+
+    if contract_type == "real_estate_sale":
+        data.update(
+            {
+                "address": "경기도 남양주시 다산동 1234 다산자이아파트 205동 1203호",
+                "land_category": "대",
+                "land_share_ratio": "45120/52.4100",
+                "land_area": "52.41",
+                "building_structure": "철근콘크리트",
+                "building_use": "공동주택(아파트)",
+                "building_area": "84.9700",
+                "lease_part": "205동 1203호 전부",
+                "lease_area": "84.9700",
+                "deposit": 750_000_000,
+                "down_payment": 75_000_000,
+                "loan_assumption": 200_000_000,
+                "lease_deposit_assumption": 0,
+                "interim_payment": 100_000_000,
+                "use_interim_date": True,
+                "balance": 375_000_000,
+            }
+        )
+    elif contract_type == "housing_wolse":
+        data.update(
+            {
+                "address": "서울특별시 중랑구 면목동 567-8 현대빌라 302호",
+                "land_category": "대",
+                "land_share_ratio": "280/24.5",
+                "land_area": "24.50",
+                "building_structure": "철근콘크리트",
+                "building_use": "다세대주택",
+                "building_area": "49.80",
+                "lease_part": "302호 전부",
+                "lease_area": "49.80",
+                "deposit": 30_000_000,
+                "down_payment": 3_000_000,
+                "interim_payment": 0,
+                "balance": 27_000_000,
+                "monthly_rent": 850_000,
+                "monthly_rent_day": "25",
+                "rent_pay_type": "선불",
+                "management_fee": 70_000,
+                "management_fee_note": "공용전기·청소·인터넷 포함, 수도·가스 별도",
+            }
+        )
+    elif contract_type == "commercial_lease":
+        data.update(
+            {
+                "address": "경기도 구리시 인창동 670-1 센트럴프라자 1층 104호",
+                "building_structure": "철근콘크리트",
+                "building_use": "제1종근린생활시설",
+                "building_area": "1250.40",
+                "lease_part": "1층 104호 전부",
+                "lease_area": "56.20",
+                "business_type": "커피전문점(휴게음식점)",
+                "deposit": 50_000_000,
+                "down_payment": 5_000_000,
+                "interim_payment": 0,
+                "balance": 45_000_000,
+                "monthly_rent": 2_800_000,
+                "monthly_rent_day": "10",
+                "rent_pay_type": "선불",
+                "vat_type": "부가가치세 별도",
+                "management_fee": 350_000,
+                "management_fee_note": "관리규약 실비 정산, 부가세 별도",
+            }
+        )
+    elif contract_type == "nursing_home_transfer":
+        data.update(
+            {
+                "facility_name": "행복한실버노인요양원 (예시)",
+                "facility_reg_no": "2-41360-00000",
+                "address": "경기도 남양주시 진접읍 경복대로 123, 3~4층",
+                "facility_capacity": "인가정원 29인 / 현원 27인",
+                "building_structure": "철근콘크리트",
+                "building_use": "노유자시설(노인의료복지시설)",
+                "building_area": "680.50",
+                "lease_part": "시설·비품·장기요양기관 지정 지위 및 운영권 일체",
+                "lease_area": "680.50",
+                "deposit": 350_000_000,
+                "down_payment": 35_000_000,
+                "interim_payment": 100_000_000,
+                "use_interim_date": True,
+                "escrow_amount": 50_000_000,
+                "escrow_period": "6개월",
+                "escrow_condition": "현지조사·부당청구 환수·행정처분 대비 정산 후 지급",
+                "balance": 165_000_000,
+            }
+        )
+    elif contract_type == "premium_rights":
+        data.update(
+            {
+                "store_name": "오남수제버거 (예시)",
+                "business_type": "일반음식점",
+                "address": "경기도 남양주시 오남읍 진건오남로 756, 1층 105호",
+                "lease_part": "1층 105호 점포 전부",
+                "lease_area": "62.80",
+                "new_lease_summary": "보증금 4,000만원 / 월세 220만원(VAT별도) / 관리비 실비 / 24개월",
+                "deposit": 60_000_000,
+                "down_payment": 6_000_000,
+                "interim_payment": 0,
+                "balance": 54_000_000,
+            }
+        )
+    elif contract_type == "land_sale":
+        data.update(
+            {
+                "address": "경기도 양평군 양서면 목왕리 123-4",
+                "land_category": "전",
+                "land_area": "1000.0",
+                "land_zoning": "계획관리지역",
+                "land_status": "밭 (경작 중)",
+                "lease_part": "토지 전부",
+                "extra_parcels": "",
+                "deposit": 500_000_000,
+                "down_payment": 50_000_000,
+                "loan_assumption": 100_000_000,
+                "interim_payment": 0,
+                "balance": 350_000_000,
+            }
+        )
+    else:
+        data.update(
+            {
+                "address": "경기도 남양주시 오남읍 오남리 801 오남아이파크아파트 108동 401호",
+                "land_category": "대",
+                "land_share_ratio": "33101/55.3748",
+                "land_area": "32.01",
+                "building_structure": "철근콘크리트",
+                "building_use": "공동주택",
+                "building_area": "84.9580",
+                "lease_part": "108동 401호 전부",
+                "lease_area": "84.9580",
+                "deposit": 160_000_000,
+                "down_payment": 16_000_000,
+                "interim_payment": 0,
+                "balance": 144_000_000,
+            }
+        )
+    return data
+
+
+def _purge_old_widget_keys() -> None:
+    prefixes = ("f_", "chk_", "txt_", "var_", "_prev_bind_", "new_custom_clause_", "custom_edit_")
+    for k in list(st.session_state.keys()):
+        if k.startswith(prefixes):
+            del st.session_state[k]
+
+
+def ensure_state_initialized() -> None:
+    if "_form_nonce" not in st.session_state:
+        st.session_state["_form_nonce"] = 0
+    if "_form_data" not in st.session_state:
+        st.session_state["_form_data"] = _empty_form_values()
+    if "current_contract_id" not in st.session_state:
+        st.session_state["current_contract_id"] = generate_contract_id()
+    if "current_contract_status" not in st.session_state:
+        st.session_state["current_contract_status"] = "unsaved"
+    if "contract_type" not in st.session_state:
+        st.session_state["contract_type"] = "housing_jeonse"
+    if "color_mode" not in st.session_state:
+        st.session_state["color_mode"] = "color"
+    if "draft_mode" not in st.session_state:
+        st.session_state["draft_mode"] = False
+    if "custom_clauses_by_type" not in st.session_state:
+        st.session_state["custom_clauses_by_type"] = {}
+    if "_clause_overrides" not in st.session_state:
+        st.session_state["_clause_overrides"] = {}
+    if "_expand_att_section" not in st.session_state:
+        st.session_state["_expand_att_section"] = False
+    if "_expand_party_section" not in st.session_state:
+        st.session_state["_expand_party_section"] = False
+    if "ai_last_result" not in st.session_state:
+        st.session_state["ai_last_result"] = None
+
+
+def _consume_pending_autofill() -> None:
+    """위젯 렌더링 전 최상단에서 대기 버퍼(pending_autofill)를 소비해 st.session_state에 강제 동기화한다.
+
+    6대 계약 유형 전체의 실제 위젯 키(`_wkey(field)`)와 충돌 없이 즉시 반영된다.
+    """
+    pending = st.session_state.pop("pending_autofill", None)
+    if not isinstance(pending, dict):
+        return
+
+    extracted: dict[str, Any] = pending.get("mapped_fields", {})
+    contract_type: str = str(pending.get("contract_type") or st.session_state.get("contract_type", "housing_jeonse"))
+
+    form = dict(st.session_state.get("_form_data", _empty_form_values()))
+    direct_fields = (
+        "address",
+        "land_category",
+        "land_share_ratio",
+        "land_area",
+        "land_zoning",
+        "building_structure",
+        "building_use",
+        "building_area",
+        "lease_part",
+        "lease_area",
+        "facility_name",
+        "store_name",
+        "lessor_name",
+        "lessor_rrn",
+        "lessor_address",
+        "lessee_name",
+        "lessee_rrn",
+        "lessee_address",
+    )
+
+    filled_keys: list[str] = []
+    party_filled = False
+    for field in direct_fields:
+        val = str(extracted.get(field, "")).strip()
+        if val:
+            form[field] = val
+            filled_keys.append(field)
+            if field.startswith(("lessor_", "lessee_")):
+                party_filled = True
+
+    max_bond = str(extracted.get("max_bond_amount", "")).strip()
+    overrides = dict(st.session_state.get("_clause_overrides", {}))
+    if max_bond:
+        filled_keys.append("max_bond_amount")
+        target_cid = (
+            "land_req_04"
+            if contract_type == "land_sale"
+            else ("sale_req_02" if contract_type == "real_estate_sale" else "jeonse_req_02")
+        )
+        entry = dict(overrides.get(target_cid, {}))
+        entry_vars = dict(entry.get("variables", {}))
+        entry_vars["채권최고액"] = max_bond
+        entry["variables"] = entry_vars
+        overrides[target_cid] = entry
+
+    _purge_old_widget_keys()
+    new_nonce = int(st.session_state.get("_form_nonce", 0)) + 1
+    st.session_state["_form_nonce"] = new_nonce
+    st.session_state["_form_data"] = form
+    st.session_state["_clause_overrides"] = overrides
+    st.session_state["_expand_att_section"] = True
+    if party_filled:
+        st.session_state["_expand_party_section"] = True
+
+    # 새 nonce 위젯 키에도 즉시 선반영하여 첫 렌더링부터 100% 동기화 보장
+    for field, val in form.items():
+        st.session_state[f"f_{new_nonce}_{field}"] = val
+
+    if isinstance(st.session_state.get("ai_last_result"), dict):
+        st.session_state["ai_last_result"]["applied_keys"] = filled_keys
+
+
+def start_new_contract(keep_type: bool = True) -> None:
+    """새 계약서 작성 시작 (새 ID 발급 + 폼/특약 완전 초기화)."""
+    _purge_old_widget_keys()
+    st.session_state["_form_nonce"] = int(st.session_state.get("_form_nonce", 0)) + 1
+    st.session_state["_form_data"] = _empty_form_values()
+    st.session_state["current_contract_id"] = generate_contract_id()
+    st.session_state["current_contract_status"] = "unsaved"
+    st.session_state["custom_clauses_by_type"] = {}
+    st.session_state["_clause_overrides"] = {}
+    st.session_state["ai_last_result"] = None
+    st.session_state["_expand_party_section"] = False
+    if not keep_type:
+        st.session_state["contract_type"] = "housing_jeonse"
+
+
+def reset_form_to_empty() -> None:
+    """[입력 초기화]: 현재 문서 ID는 유지하고 입력값만 전부 '' / 0으로 초기화한다."""
+    _purge_old_widget_keys()
+    st.session_state["_form_nonce"] = int(st.session_state.get("_form_nonce", 0)) + 1
+    st.session_state["_form_data"] = _empty_form_values()
+    st.session_state["custom_clauses_by_type"] = {}
+    st.session_state["_clause_overrides"] = {}
+    st.session_state["ai_last_result"] = None
+    st.session_state["_expand_party_section"] = False
+
+
+def apply_sample_to_form(contract_type: str) -> None:
+    _purge_old_widget_keys()
+    st.session_state["_form_nonce"] = int(st.session_state.get("_form_nonce", 0)) + 1
+    st.session_state["_form_data"] = _sample_form_values(contract_type)
+    st.session_state["custom_clauses_by_type"] = {}
+    st.session_state["_clause_overrides"] = {}
+
+
+def apply_loaded_payload(
+    contract_id: str,
+    contract_type: str,
+    status: str,
+    payload: dict[str, Any],
+) -> None:
+    """DB에서 불러온 계약서 데이터를 세션과 위젯에 정확히 복원한다."""
+    _purge_old_widget_keys()
+    st.session_state["_form_nonce"] = int(st.session_state.get("_form_nonce", 0)) + 1
+    merged = _empty_form_values()
+    merged.update(payload.get("form_data", {}))
+    st.session_state["_form_data"] = merged
+    st.session_state["current_contract_id"] = contract_id
+    st.session_state["current_contract_status"] = status
+    st.session_state["contract_type"] = contract_type
+    st.session_state["color_mode"] = payload.get("color_mode", "color")
+    st.session_state["draft_mode"] = bool(payload.get("draft_mode", False))
+    st.session_state["custom_clauses_by_type"] = payload.get("custom_clauses_by_type", {})
+    st.session_state["_clause_overrides"] = payload.get("clause_state", {})
+
+
+def _wkey(field: str) -> str:
+    nonce = st.session_state["_form_nonce"]
+    key = f"f_{nonce}_{field}"
+    if key not in st.session_state:
+        st.session_state[key] = st.session_state["_form_data"][field]
+    return key
+
+
+def _capture_current_clause_state(contract_type: str, type_cfg: dict[str, Any]) -> dict[str, Any]:
+    """현재 선택된 특약 체크 상태·수정 문구·변수 입력값을 저장용 사전으로 직렬화한다."""
+    nonce = st.session_state["_form_nonce"]
+    state: dict[str, Any] = {}
+    for clause in type_cfg.get("clauses", []):
+        cid = clause["id"]
+        chk_key = f"chk_{nonce}_{contract_type}_{cid}"
+        txt_key = f"txt_{nonce}_{contract_type}_{cid}"
+        vars_dict: dict[str, str] = {}
+        for var_name in clause.get("variables", {}):
+            vkey = f"var_{nonce}_{contract_type}_{cid}_{var_name}"
+            if vkey in st.session_state:
+                vars_dict[var_name] = str(st.session_state[vkey])
+        state[cid] = {
+            "checked": bool(st.session_state.get(chk_key, clause.get("required", False))),
+            "template": str(st.session_state.get(txt_key, clause["template"])),
+            "variables": vars_dict,
+        }
+    return state
+
+
+def _build_storage_payload(
+    live_form: dict[str, Any],
+    contract_type: str,
+    type_cfg: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "form_data": dict(live_form),
+        "clause_state": _capture_current_clause_state(contract_type, type_cfg),
+        "custom_clauses_by_type": st.session_state.get("custom_clauses_by_type", {}),
+        "color_mode": st.session_state.get("color_mode", "color"),
+        "draft_mode": bool(st.session_state.get("draft_mode", False)),
+    }
+
+
+def _queue_pending_autofill(
+    ai_result: dict[str, Any],
+    contract_type: str,
+) -> None:
+    """AI 추출 결과를 대기 버퍼(pending_autofill)에 넣고 rerun으로 안전하게 반영한다."""
+    st.session_state["ai_last_result"] = ai_result
+    st.session_state["_expand_att_section"] = True
+    if ai_result.get("ok") and ai_result.get("mapped_fields"):
+        st.session_state["pending_autofill"] = {
+            "mapped_fields": dict(ai_result["mapped_fields"]),
+            "contract_type": contract_type,
+        }
+
+
+def _field_display_name(field: str, p1_role: str, p2_role: str) -> str:
+    labels = {
+        "address": "소재지",
+        "land_category": "지목",
+        "land_share_ratio": "대지권비율",
+        "land_area": "토지면적",
+        "land_zoning": "용도지역·지구",
+        "building_structure": "건물 구조",
+        "building_use": "건물 용도",
+        "building_area": "건물 면적",
+        "lease_part": "대상 부분",
+        "lease_area": "전용/계약 면적",
+        "facility_name": "요양시설 명칭",
+        "store_name": "상호(점포명)",
+        "max_bond_amount": "채권최고액(특약 연동)",
+        "lessor_name": f"{p1_role} 성명",
+        "lessor_rrn": f"{p1_role} 주민(사업자)번호",
+        "lessor_address": f"{p1_role} 주소",
+        "lessee_name": f"{p2_role} 성명",
+        "lessee_rrn": f"{p2_role} 주민(사업자)번호",
+        "lessee_address": f"{p2_role} 주소",
+    }
+    return labels.get(field, field)
+
+
+def render_sidebar_saved_contracts(clauses_lib: dict[str, Any]) -> None:
+    """좌측 사이드바: 저장된 계약서 목록 (유형 필터, 상태 필터, 검색, 불러오기, 복사, 삭제)."""
+    with st.sidebar:
+        st.markdown("## 📂 저장된 계약서 목록")
+        if st.button("➕ 새 계약서 작성", use_container_width=True, type="primary"):
+            start_new_contract(keep_type=True)
+            st.rerun()
+
+        st.markdown("---")
+        type_options = ["all"] + get_ordered_type_keys(clauses_lib)
+        type_filter = st.selectbox(
+            "계약 유형 필터",
+            options=type_options,
+            format_func=lambda k: "전체 유형" if k == "all" else clauses_lib[k]["label"],
+            key="sb_type_filter",
+        )
+        status_filter = st.selectbox(
+            "저장 상태",
+            options=["all", "draft", "completed"],
+            format_func=lambda s: {"all": "전체 상태", "draft": "🟡 임시저장", "completed": "🟢 최종 완료"}[s],
+            key="sb_status_filter",
+        )
+        search_q = st.text_input(
+            "검색 (소재지·시설명·당사자)",
+            key="sb_search_query",
+            placeholder="예: 오남, 홍길동, 요양원",
+        )
+
+        rows = list_contracts(
+            contract_type_filter=type_filter,
+            search_query=search_q,
+            status_filter=status_filter,
+        )
+        st.caption(f"총 **{len(rows)}건** 저장됨 (`data/contracts.db`)")
+
+        if not rows:
+            st.info("저장된 계약서가 없습니다. 상단의 [임시저장] 또는 [최종 누적 저장]을 이용해 보관하세요.")
+        else:
+            active_id = st.session_state.get("current_contract_id", "")
+            for row in rows:
+                cid = row["id"]
+                is_active = cid == active_id
+                status_badge = "🟢 완료" if row["status"] == "completed" else "🟡 임시저장"
+                att_cnt = int(row.get("attachment_count", 0) or 0)
+                att_badge = f" · 📎 {att_cnt}" if att_cnt > 0 else ""
+                amt = int(row.get("deposit_amount", 0) or 0)
+                amt_txt = f"{amt:,}원" if amt > 0 else "금액 미입력"
+
+                with st.container(border=True):
+                    active_mark = " 👉 **[편집중]**" if is_active else ""
+                    st.markdown(f"**{status_badge}** · `{row['contract_type_label']}`{att_badge}{active_mark}")
+                    st.markdown(f"{row['title']}")
+                    st.caption(f"{amt_txt} | 수정: {row['updated_at'][:16]}")
+
+                    b1, b2, b3 = st.columns([1.2, 1.2, 0.9])
+                    with b1:
+                        if st.button("열기", key=f"sb_open_{cid}", use_container_width=True):
+                            meta_row, payload, _ = load_contract(cid)
+                            if meta_row and payload:
+                                apply_loaded_payload(
+                                    contract_id=cid,
+                                    contract_type=meta_row["contract_type"],
+                                    status=meta_row["status"],
+                                    payload=payload,
+                                )
+                                st.toast(f"계약서를 불러왔습니다: {meta_row['title']}")
+                                st.rerun()
+                    with b2:
+                        if st.button("복사", key=f"sb_copy_{cid}", use_container_width=True, help="복사하여 새 계약 작성"):
+                            meta_row, payload, _ = load_contract(cid)
+                            if meta_row and payload:
+                                new_cid = generate_contract_id()
+                                apply_loaded_payload(
+                                    contract_id=new_cid,
+                                    contract_type=meta_row["contract_type"],
+                                    status="unsaved",
+                                    payload=payload,
+                                )
+                                st.toast(f"복사하여 새 계약({new_cid})을 시작했습니다.")
+                                st.rerun()
+                    with b3:
+                        if st.button("삭제", key=f"sb_del_{cid}", use_container_width=True):
+                            delete_contract(cid)
+                            if cid == active_id:
+                                start_new_contract(keep_type=True)
+                            st.toast("저장된 계약서 및 증빙서류를 삭제했습니다.")
+                            st.rerun()
+
+        # 사이드바 최하단: Gemini API 키 설정 접이식 메뉴
+        st.markdown("---")
+        current_key = get_gemini_api_key(st.secrets)
+        key_status_badge = f"활성화됨 ({mask_api_key(current_key)})" if current_key else "미설정"
+        with st.expander(f"🔑 Gemini API 키 설정 ({key_status_badge})", expanded=False):
+            if current_key:
+                st.success(f"✅ 현재 설정됨: `{mask_api_key(current_key)}`")
+            else:
+                st.caption("Google AI Studio에서 발급받은 Gemini API 키를 붙여넣고 [저장]을 누르세요.")
+
+            key_input = st.text_input(
+                "Gemini API 키",
+                type="password",
+                placeholder="AIza...",
+                key="sb_gemini_api_key_input",
+            )
+            k1, k2 = st.columns([1.4, 1.0])
+            with k1:
+                if st.button("💾 저장", key="sb_save_gemini_key_btn", type="primary", use_container_width=True):
+                    ok_save, save_msg = save_gemini_api_key_to_secrets(key_input)
+                    if ok_save:
+                        # 이전 NO_API_KEY 오류 배너가 남아있으면 즉시 제거
+                        last_ai = st.session_state.get("ai_last_result")
+                        if isinstance(last_ai, dict) and last_ai.get("error_type") == "NO_API_KEY":
+                            st.session_state["ai_last_result"] = None
+                        st.session_state["sb_gemini_key_feedback"] = ("success", save_msg)
+                        st.rerun()
+                    else:
+                        st.session_state["sb_gemini_key_feedback"] = ("error", save_msg)
+                        st.rerun()
+            with k2:
+                if st.button(
+                    "🗑️ 삭제",
+                    key="sb_del_gemini_key_btn",
+                    disabled=not current_key,
+                    use_container_width=True,
+                ):
+                    delete_gemini_api_key_from_secrets()
+                    st.session_state["sb_gemini_key_feedback"] = ("info", "저장된 Gemini API 키가 삭제되었습니다.")
+                    st.rerun()
+
+            fb = st.session_state.pop("sb_gemini_key_feedback", None)
+            if fb:
+                lvl, fb_msg = fb
+                if lvl == "success":
+                    st.success(fb_msg)
+                elif lvl == "error":
+                    st.error(fb_msg)
+                else:
+                    st.info(fb_msg)
+            st.caption("저장 경로: `.streamlit/secrets.toml` (PC 로컬 전용)")
+
+
+def render_attachments_and_ai_panel(
+    contract_id: str,
+    contract_type: str,
+    type_cfg: dict[str, Any],
+    live_form: dict[str, Any],
+    p1_role: str,
+    p2_role: str,
+) -> None:
+    """입력 폼 최상단: 증빙서류 카메라 촬영·갤러리 업로드 보관 및 AI 자동 채우기."""
+    existing_atts = list_attachments(contract_id)
+    panel_title = (
+        f"📎 증빙서류 보관 및 AI 자동 채우기 (보관 중: {len(existing_atts)}건)"
+        if existing_atts
+        else "📎 증빙서류 보관 및 AI 자동 채우기 (신분증·건축물대장·등기부등본)"
+    )
+
+    with st.expander(panel_title, expanded=bool(st.session_state.get("_expand_att_section", False))):
+        c1, c2 = st.columns([0.9, 1.6])
+        with c1:
+            att_cat = st.selectbox(
+                "증빙서류 분류",
+                options=ATTACHMENT_CATEGORIES,
+                key="att_category_select",
+            )
+        with c2:
+            id_role = st.radio(
+                "신분증 적용 대상",
+                options=["party1", "party2"],
+                format_func=lambda r: (
+                    f"매도인·임대인·양도인 ({p1_role})"
+                    if r == "party1"
+                    else f"매수인·임차인·양수인 ({p2_role})"
+                ),
+                horizontal=True,
+                key="ai_id_role",
+            )
+
+        tab_upload, tab_cam = st.tabs(["🖼️ 갤러리 / 파일 업로드 (JPG·PNG·PDF)", "📷 카메라 직접 촬영"])
+
+        with tab_upload:
+            uploaded_files = st.file_uploader(
+                "증빙서류 파일 선택 (다중 선택 가능)",
+                type=["jpg", "jpeg", "png", "pdf"],
+                accept_multiple_files=True,
+                key=f"att_uploader_{contract_id}_{len(existing_atts)}",
+            )
+            if st.button(
+                "📥 선택 파일 보관함에 저장",
+                disabled=not uploaded_files,
+                use_container_width=True,
+                key="save_uploaded_atts_btn",
+            ):
+                payload = _build_storage_payload(live_form, contract_type, type_cfg)
+                ensure_contract_record_exists(contract_id, contract_type, type_cfg["label"], payload)
+                if st.session_state.get("current_contract_status") == "unsaved":
+                    st.session_state["current_contract_status"] = "draft"
+                for uf in uploaded_files or []:
+                    mime = uf.type or (
+                        "application/pdf" if uf.name.lower().endswith(".pdf") else "image/jpeg"
+                    )
+                    save_attachment(contract_id, att_cat, uf.name, uf.getvalue(), mime)
+                st.session_state["_expand_att_section"] = True
+                st.success(f"{len(uploaded_files or [])}건의 증빙서류가 `data/attachments/{contract_id}/`에 보관되었습니다.")
+                st.rerun()
+
+        with tab_cam:
+            st.caption("스마트폰·태블릿·노트북 카메라로 신분증·건축물대장·등기부등본을 바로 촬영하세요.")
+            cam_photo = st.camera_input(
+                "서류 촬영",
+                key=f"att_camera_{contract_id}_{len(existing_atts)}",
+            )
+            if st.button(
+                "📸 촬영 사진 보관함에 저장",
+                disabled=cam_photo is None,
+                use_container_width=True,
+                key="save_cam_att_btn",
+            ):
+                if cam_photo is not None:
+                    payload = _build_storage_payload(live_form, contract_type, type_cfg)
+                    ensure_contract_record_exists(contract_id, contract_type, type_cfg["label"], payload)
+                    if st.session_state.get("current_contract_status") == "unsaved":
+                        st.session_state["current_contract_status"] = "draft"
+                    save_attachment(
+                        contract_id,
+                        att_cat,
+                        f"camera_{att_cat}.jpg",
+                        cam_photo.getvalue(),
+                        cam_photo.type or "image/jpeg",
+                    )
+                    st.session_state["_expand_att_section"] = True
+                    st.success("촬영된 증빙서류가 보관함에 저장되었습니다.")
+                    st.rerun()
+
+        # 보관된 증빙서류 열람 및 다운로드
+        if existing_atts:
+            st.markdown("---")
+            st.markdown(f"**🗂️ 보관된 증빙서류 ({len(existing_atts)}건)**")
+            for att in existing_atts:
+                att_id = att["id"]
+                raw_bytes = read_attachment_bytes(att["stored_path"])
+                row_c1, row_c2, row_c3 = st.columns([2.4, 1.0, 0.7])
+                with row_c1:
+                    kb = max(1, int(att["file_size"]) // 1024)
+                    st.markdown(f"`[{att['category']}]` **{att['original_filename']}** ({kb:,} KB)")
+                    if raw_bytes and att["mime_type"].startswith("image/"):
+                        with st.expander("미리보기", expanded=False):
+                            st.image(raw_bytes, use_container_width=True)
+                with row_c2:
+                    if raw_bytes:
+                        st.download_button(
+                            "⬇️ 열기/저장",
+                            data=raw_bytes,
+                            file_name=att["original_filename"],
+                            mime=att["mime_type"],
+                            key=f"att_dl_{att_id}",
+                            use_container_width=True,
+                        )
+                with row_c3:
+                    if st.button("삭제", key=f"att_del_{att_id}", use_container_width=True):
+                        delete_attachment(att_id)
+                        st.session_state["_expand_att_section"] = True
+                        st.rerun()
+
+        # AI 자동 채우기 (Gemini API 연동 — 미저장 업로드/촬영 파일도 1클릭 자동 포함·보관)
+        st.markdown("---")
+        pending_upload_cnt = len(uploaded_files or []) + (1 if cam_photo is not None else 0)
+        total_available = len(existing_atts) + pending_upload_cnt
+        api_key = get_gemini_api_key(st.secrets)
+
+        if not api_key:
+            st.warning(
+                "🔑 **GEMINI_API_KEY 미설정**: 좌측 사이드바 하단의 **`🔑 Gemini API 키 설정`**에 "
+                "API 키를 붙여넣고 **[💾 저장]**을 누르시면 즉시 AI 자동 채우기가 활성화됩니다."
+            )
+
+        if st.button(
+            f"✨ AI로 서류 읽어 자동 채우기 (대상: {p1_role if id_role == 'party1' else p2_role} / 서류 {total_available}건)",
+            disabled=total_available == 0,
+            type="primary",
+            use_container_width=True,
+            key="ai_autofill_btn",
+        ):
+            # 아직 보관함에 저장하지 않은 업로드/촬영 파일이 있으면 먼저 자동 보관
+            if pending_upload_cnt > 0:
+                payload = _build_storage_payload(live_form, contract_type, type_cfg)
+                ensure_contract_record_exists(contract_id, contract_type, type_cfg["label"], payload)
+                if st.session_state.get("current_contract_status") == "unsaved":
+                    st.session_state["current_contract_status"] = "draft"
+                for uf in uploaded_files or []:
+                    mime = uf.type or (
+                        "application/pdf" if uf.name.lower().endswith(".pdf") else "image/jpeg"
+                    )
+                    save_attachment(contract_id, att_cat, uf.name, uf.getvalue(), mime)
+                if cam_photo is not None:
+                    save_attachment(
+                        contract_id,
+                        att_cat,
+                        f"camera_{att_cat}.jpg",
+                        cam_photo.getvalue(),
+                        cam_photo.type or "image/jpeg",
+                    )
+                existing_atts = list_attachments(contract_id)
+
+            docs_for_ai = []
+            for att in existing_atts:
+                b = read_attachment_bytes(att["stored_path"])
+                if b:
+                    docs_for_ai.append(
+                        {
+                            "category": att["category"],
+                            "filename": att["original_filename"],
+                            "mime_type": att["mime_type"],
+                            "data": b,
+                        }
+                    )
+
+            with st.status("🤖 AI 증빙서류 자동 채우기 실행 중...", expanded=True) as status_box:
+                def _on_ai_step(msg: str) -> None:
+                    status_box.write(msg)
+                    status_box.update(label=msg)
+
+                ai_res = extract_contract_fields_from_documents(
+                    documents=docs_for_ai,
+                    api_key=api_key,
+                    id_target_role=id_role,
+                    timeout_seconds=30,
+                    on_progress=_on_ai_step,
+                )
+                if ai_res.get("ok"):
+                    status_box.update(label="✅ 1) 이미지 보정 → 2) API 전송 → 3) 응답 파싱 완료!", state="complete")
+                else:
+                    status_box.update(
+                        label=f"🚨 중단됨 [{ai_res.get('error_type', 'ERROR')}]",
+                        state="error",
+                    )
+            _queue_pending_autofill(ai_res, contract_type)
+            st.rerun()
+
+        # 최근 AI 자동 채우기 진단 결과 투명 표시 (단계 로그·성공/실패·원본 응답 모두 유지)
+        last_ai = st.session_state.get("ai_last_result")
+        if isinstance(last_ai, dict):
+            if last_ai.get("ok"):
+                applied_keys = last_ai.get("applied_keys") or list(last_ai.get("mapped_fields", {}).keys())
+                pretty_names = ", ".join(
+                    _field_display_name(k, p1_role, p2_role) for k in applied_keys
+                )
+                st.success(f"✅ {last_ai.get('message', '')}\n\n**반영 항목**: {pretty_names}")
+                with st.expander("🔍 AI 판독 단계 로그 · 원본 JSON · 이미지 보정 내역 보기", expanded=False):
+                    if last_ai.get("step_log"):
+                        st.markdown("\n".join(f"- {s}" for s in last_ai["step_log"]))
+                    if last_ai.get("preprocess_notes"):
+                        st.caption("이미지 전처리: " + " | ".join(last_ai["preprocess_notes"]))
+                    st.json(last_ai.get("mapped_fields", {}))
+                    st.code(last_ai.get("raw_response_text", ""), language="json")
+            else:
+                err_code = last_ai.get("error_type", "ERROR")
+                st.error(f"🚨 AI 자동 채우기 실패 [{err_code}]: {last_ai.get('message', '알 수 없는 오류')}")
+                if last_ai.get("step_log"):
+                    st.markdown("**진행 단계 로그:**\n" + "\n".join(f"- {s}" for s in last_ai["step_log"]))
+                if last_ai.get("preprocess_notes"):
+                    st.caption("이미지 전처리 내역: " + " | ".join(last_ai["preprocess_notes"]))
+                raw_txt = last_ai.get("raw_response_text", "")
+                if raw_txt:
+                    st.markdown("**🔍 AI 원본 응답 / 오류 상세:**")
+                    st.code(raw_txt, language="json")
+
+
+def render_clause_selector(
+    contract_type: str,
+    type_cfg: dict[str, Any],
+    live_form: dict[str, Any],
+) -> list[str]:
+    """③ 정밀 특약사항 선택기 (필수/선택 구분, 변수 치환, 문구 직접 수정, 신규 추가)."""
+    nonce = st.session_state["_form_nonce"]
+    overrides: dict[str, Any] = st.session_state.get("_clause_overrides", {})
+    clauses_def: list[dict[str, Any]] = type_cfg.get("clauses", [])
+    rendered_list: list[str] = []
+
+    st.caption("필수 특약은 기본 선택되어 있으며, 변수를 채우거나 본문을 직접 수정·추가할 수 있습니다.")
+
+    for clause in clauses_def:
+        cid = clause["id"]
+        saved_c = overrides.get(cid, {})
+        chk_key = f"chk_{nonce}_{contract_type}_{cid}"
+        txt_key = f"txt_{nonce}_{contract_type}_{cid}"
+
+        if chk_key not in st.session_state:
+            st.session_state[chk_key] = bool(saved_c.get("checked", clause.get("required", False)))
+        if txt_key not in st.session_state:
+            st.session_state[txt_key] = str(saved_c.get("template", clause["template"]))
+
+        badge = "🔴 필수" if clause.get("required") else "🔵 선택"
+        cat = clause.get("category", "일반")
+        label = f"{badge} [{cat}] {clause['title']}"
+
+        checked = st.checkbox(label, key=chk_key)
+        if checked:
+            var_meta: dict[str, dict[str, Any]] = clause.get("variables", {})
+            saved_vars: dict[str, Any] = saved_c.get("variables", {})
+            var_values: dict[str, Any] = {}
+
+            if var_meta:
+                var_cols = st.columns(min(len(var_meta), 3))
+                for idx, (var_name, meta) in enumerate(var_meta.items()):
+                    vkey = f"var_{nonce}_{contract_type}_{cid}_{var_name}"
+                    bind_field = meta.get("bind_field")
+                    default_val = saved_vars.get(var_name, meta.get("default", ""))
+
+                    if bind_field and bind_field in live_form and var_name not in saved_vars:
+                        bound_val = live_form[bind_field]
+                        if meta.get("type") == "date":
+                            default_val = format_date_kr(bound_val, zero_pad=True)
+                        else:
+                            default_val = str(bound_val) if bound_val else ""
+
+                    if vkey not in st.session_state:
+                        st.session_state[vkey] = default_val
+                    elif bind_field and meta.get("type") == "date":
+                        bound_str = format_date_kr(live_form.get(bind_field), zero_pad=True)
+                        prev_bind_key = f"_prev_bind_{vkey}"
+                        if st.session_state.get(prev_bind_key) != bound_str:
+                            st.session_state[vkey] = bound_str
+                            st.session_state[prev_bind_key] = bound_str
+
+                    with var_cols[idx % len(var_cols)]:
+                        var_values[var_name] = st.text_input(
+                            meta.get("label", var_name),
+                            key=vkey,
+                            placeholder=f"{{{var_name}}}",
+                        )
+
+            with st.expander("✏️ 특약 문구 직접 수정", expanded=False):
+                edited_template = st.text_area(
+                    "특약 원문 ({변수명} 유지 가능)",
+                    key=txt_key,
+                    height=80,
+                    label_visibility="collapsed",
+                )
+            resolved = substitute_clause_variables(edited_template, var_values, var_meta)
+            rendered_list.append(resolved)
+
+    st.markdown("---")
+    st.markdown("**➕ 사용자 정의 특약 추가**")
+    custom_map: dict[str, list[str]] = st.session_state["custom_clauses_by_type"]
+    custom_list: list[str] = custom_map.setdefault(contract_type, [])
+
+    c_in, c_btn = st.columns([4, 1])
+    new_clause_key = f"new_custom_clause_{nonce}_{contract_type}"
+    with c_in:
+        new_clause_text = st.text_input(
+            "새 특약 내용 입력",
+            key=new_clause_key,
+            placeholder="예: 입주 전 도배 및 장판을 신규 시공하여 인도한다.",
+            label_visibility="collapsed",
+        )
+    with c_btn:
+        if st.button("추가", key=f"add_btn_{nonce}_{contract_type}", use_container_width=True):
+            if new_clause_text.strip():
+                custom_list.append(new_clause_text.strip())
+                st.session_state[new_clause_key] = ""
+                st.rerun()
+
+    to_delete: int | None = None
+    for idx, c_text in enumerate(custom_list):
+        ec1, ec2 = st.columns([5, 1])
+        with ec1:
+            updated = st.text_input(
+                f"추가 특약 {idx + 1}",
+                value=c_text,
+                key=f"custom_edit_{nonce}_{contract_type}_{idx}",
+                label_visibility="collapsed",
+            )
+            custom_list[idx] = updated
+            if updated.strip():
+                rendered_list.append(updated.strip())
+        with ec2:
+            if st.button("삭제", key=f"custom_del_{nonce}_{contract_type}_{idx}", use_container_width=True):
+                to_delete = idx
+
+    if to_delete is not None:
+        custom_list.pop(to_delete)
+        st.rerun()
+
+    st.markdown("---")
+    a1, a2 = st.columns(2)
+    with a1:
+        live_form["attachment_note"] = st.text_input(
+            "첨부 서류 표기",
+            key=_wkey("attachment_note"),
+            placeholder="예: 확인설명서 및 공제증서",
+        )
+    with a2:
+        live_form["deposit_account"] = st.text_input(
+            "입금계좌",
+            key=_wkey("deposit_account"),
+            placeholder="예: 기업 010-0000-0000 홍길동",
+        )
+
+    return rendered_list
+
+
+def main() -> None:
+    if not st.session_state.get("authenticated", False):
+        render_pin_lock_screen()
+        return
+
+    init_db()
+    ensure_templates()
+    ensure_state_initialized()
+    _consume_pending_autofill()
+    clauses_lib = load_clauses_library()
+
+    # 좌측 사이드바: 저장된 계약서 목록
+    render_sidebar_saved_contracts(clauses_lib)
+
+    type_keys = get_ordered_type_keys(clauses_lib)
+    type_labels = {k: clauses_lib[k]["label"] for k in type_keys}
+    active_type_key = st.session_state.get("contract_type", "housing_jeonse")
+    if active_type_key not in CONTRACT_TYPE_THEMES:
+        active_type_key = "housing_jeonse"
+    theme = CONTRACT_TYPE_THEMES[active_type_key]
+    active_type_label = type_labels.get(active_type_key, "주택 전세")
+
+    # 선택된 계약 유형에 따른 전용 카드·드롭다운 동적 테마 CSS
+    st.markdown(
+        f"""
+        <style>
+          .st-key-contract_type_card {{
+            border: 2px solid {theme['primary']} !important;
+            background: {theme['soft_bg']} !important;
+            border-radius: 12px !important;
+            padding: 0.65rem 0.85rem 0.75rem 0.85rem !important;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
+          }}
+          .st-key-contract_type [data-baseweb="select"] > div {{
+            border: 2px solid {theme['primary']} !important;
+            border-radius: 10px !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.09) !important;
+            min-height: 46px !important;
+            padding-right: 6px !important;
+            cursor: pointer !important;
+            transition: all 0.16s ease !important;
+          }}
+          .st-key-contract_type [data-baseweb="select"] > div:hover {{
+            border-color: {theme['hover']} !important;
+            background-color: {theme['soft_bg']} !important;
+            box-shadow: 0 5px 14px rgba(15, 23, 42, 0.16) !important;
+          }}
+          .st-key-contract_type [data-baseweb="select"] span,
+          .st-key-contract_type [data-baseweb="select"] div[value],
+          .st-key-contract_type [data-baseweb="select"] input {{
+            font-size: 1.12rem !important;
+            font-weight: 800 !important;
+            color: {theme['primary']} !important;
+          }}
+          .st-key-contract_type [data-baseweb="select"] svg {{
+            background-color: {theme['primary']} !important;
+            color: #ffffff !important;
+            fill: #ffffff !important;
+            width: 30px !important;
+            height: 30px !important;
+            padding: 5px !important;
+            border-radius: 8px !important;
+            transition: background-color 0.16s ease, transform 0.16s ease !important;
+          }}
+          .st-key-contract_type [data-baseweb="select"] > div:hover svg {{
+            background-color: {theme['hover']} !important;
+            transform: scale(1.06) !important;
+          }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""
+        <div class="app-header-bar">
+          <div class="app-header-left">
+            <div class="app-header-icon">📑</div>
+            <div>
+              <h1 class="app-header-title">통합계약서</h1>
+              <p class="app-header-sub">부동산·토지 매매 · 임대차 · 상가 · 요양원 양도양수 · 권리금 전문 작성기</p>
+            </div>
+          </div>
+          <div class="app-header-pill">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{theme['primary']};border:1.5px solid #fff;"></span>
+            <span>현재 선택: {active_type_label}</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ==================== 상단 제어 바 (1행: 컬러 계약유형 카드 · 색상모드 · 초안 · 예시 · 초기화 · 잠금) ====================
+    ctrl1, ctrl2, ctrl3, ctrl4, ctrl5, ctrl6 = st.columns([2.35, 1.55, 1.05, 0.85, 0.85, 0.6])
+    with ctrl1:
+        with st.container(key="contract_type_card"):
+            st.markdown(
+                f"""
+                <div class="type-card-header">
+                  <span class="type-active-badge" style="background:{theme['primary']};">● {active_type_label}</span>
+                  <span class="type-hint-badge" style="background:{theme['badge_bg']}; color:{theme['primary']}; border:1px solid {theme['primary']};">▼ 클릭하여 계약 유형 변경</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            selected_type = st.selectbox(
+                "계약 유형 선택",
+                options=type_keys,
+                format_func=lambda k: type_labels[k],
+                key="contract_type",
+                label_visibility="collapsed",
+            )
+    with ctrl2:
+        color_mode = st.radio(
+            "출력 색상 모드",
+            options=["color", "bw"],
+            format_func=lambda m: "🎨 컬러 인쇄용" if m == "color" else "🖨️ 흑백 인쇄용",
+            horizontal=True,
+            key="color_mode",
+        )
+    with ctrl3:
+        st.write("")
+        draft_mode = st.toggle(
+            "초안 워터마크",
+            key="draft_mode",
+            help="미리보기 및 출력물 배경에 '사전 검토용 초안 (계약 효력 없음)' 표시",
+        )
+    with ctrl4:
+        st.write("")
+        if st.button("📋 예시 채우기", use_container_width=True):
+            apply_sample_to_form(selected_type)
+            st.rerun()
+    with ctrl5:
+        st.write("")
+        if st.button("🧹 입력 초기화", use_container_width=True, help="모든 입력값을 빈칸/0원으로 초기화합니다."):
+            reset_form_to_empty()
+            st.rerun()
+    with ctrl6:
+        st.write("")
+        if st.button("🔒 잠금", use_container_width=True):
+            st.session_state["authenticated"] = False
+            st.rerun()
+
+    type_cfg = clauses_lib[selected_type]
+    meta = get_type_meta(selected_type)
+    p1_role = meta["party1"]
+    p2_role = meta["party2"]
+    amt_name = meta["amount_label"]
+    current_cid = st.session_state["current_contract_id"]
+    current_status = st.session_state.get("current_contract_status", "unsaved")
+
+    # 상단 제어 바 (2행: 문서 ID + 임시저장 / 최종 누적 저장)
+    status_label_map = {"unsaved": "⚪ 미저장 새 문서", "draft": "🟡 임시저장됨", "completed": "🟢 최종 저장 완료"}
+    save_bar1, save_bar2, save_bar3 = st.columns([2.5, 1.1, 1.2])
+    with save_bar1:
+        st.markdown(
+            f'<div class="doc-id-pill">문서 ID: {current_cid} &nbsp;|&nbsp; {status_label_map.get(current_status, "⚪ 미저장")}</div>',
+            unsafe_allow_html=True,
+        )
+    with save_bar2:
+        save_draft_clicked = st.button("💾 임시저장", use_container_width=True)
+    with save_bar3:
+        save_final_clicked = st.button("✅ 최종 누적 저장", use_container_width=True, type="primary")
+
+    live_form: dict[str, Any] = dict(st.session_state["_form_data"])
+
+    # ==================== 좌측 입력 폼 / 우측 실시간 A4 미리보기 ====================
+    col_form, col_preview = st.columns([1.0, 1.15], gap="large")
+
+    with col_form:
+        # 0. 최상단: 증빙서류 촬영·갤러리 업로드 보관 및 AI 자동 채우기
+        render_attachments_and_ai_panel(
+            contract_id=current_cid,
+            contract_type=selected_type,
+            type_cfg=type_cfg,
+            live_form=live_form,
+            p1_role=p1_role,
+            p2_role=p2_role,
+        )
+
+        # ① 대상 부동산 / 토지 / 시설 / 점포의 표시
+        sec1_label = (
+            "① 토지의 표시 (지번·지목·면적·용도지역)"
+            if selected_type == "land_sale"
+            else (
+                "① 양도·양수 대상 요양시설의 표시"
+                if selected_type == "nursing_home_transfer"
+                else (
+                    "① 대상 점포 및 신규 임대차 조건"
+                    if selected_type == "premium_rights"
+                    else ("① 상가건물의 표시" if selected_type == "commercial_lease" else "① 부동산의 표시")
+                )
+            )
+        )
+        with st.expander(sec1_label, expanded=True):
+            if selected_type == "land_sale":
+                live_form["address"] = st.text_input(
+                    "토지 소재지 (지번)",
+                    key=_wkey("address"),
+                    placeholder="예: 경기도 양평군 양서면 목왕리 123-4",
+                )
+                ld1, ld2, ld3 = st.columns([1.0, 1.3, 1.3])
+                with ld1:
+                    live_form["land_category"] = st.text_input(
+                        "지목", key=_wkey("land_category"), placeholder="전, 답, 대, 임야 등"
+                    )
+                with ld2:
+                    live_form["land_area"] = st.text_input(
+                        "공부상 면적 (㎡)", key=_wkey("land_area"), placeholder="예: 1000.0"
+                    )
+                    py_txt = format_pyeong(live_form["land_area"])
+                    if py_txt:
+                        st.markdown(
+                            f'<div class="kr-amount-hint">약 {py_txt} (3.3058㎡ 기준 자동 환산)</div>',
+                            unsafe_allow_html=True,
+                        )
+                with ld3:
+                    live_form["lease_part"] = st.text_input(
+                        "매매 대상 (전부 / 지분율)",
+                        key=_wkey("lease_part"),
+                        placeholder="예: 토지 전부 (또는 지분 1/2)",
+                    )
+
+                ld4, ld5 = st.columns(2)
+                with ld4:
+                    live_form["land_zoning"] = st.text_input(
+                        "용도지역·지구",
+                        key=_wkey("land_zoning"),
+                        placeholder="예: 계획관리지역, 농림지역, 개발제한구역",
+                    )
+                with ld5:
+                    live_form["land_status"] = st.text_input(
+                        "토지 현황",
+                        key=_wkey("land_status"),
+                        placeholder="예: 경작 중(전), 나대지, 임야 등",
+                    )
+
+                live_form["extra_parcels"] = st.text_area(
+                    "다필지(추가 필지) 목록 메모 (선택)",
+                    key=_wkey("extra_parcels"),
+                    height=68,
+                    placeholder="메인 필지 외 추가 필지가 있으면 지번·지목·면적을 입력하세요. 입력 시 특약/별지에 자동 반영됩니다.",
+                )
+
+            elif selected_type == "nursing_home_transfer":
+                n1, n2 = st.columns([1.4, 1.0])
+                with n1:
+                    live_form["facility_name"] = st.text_input(
+                        "요양시설 명칭", key=_wkey("facility_name"), placeholder="예: 행복한실버노인요양원"
+                    )
+                with n2:
+                    live_form["facility_reg_no"] = st.text_input(
+                        "장기요양기관 기호", key=_wkey("facility_reg_no"), placeholder="예: 2-41360-00000"
+                    )
+                live_form["address"] = st.text_input(
+                    "시설 소재지", key=_wkey("address"), placeholder="예: 경기도 남양주시 ..."
+                )
+                n3, n4 = st.columns([1.2, 1.2])
+                with n3:
+                    live_form["facility_capacity"] = st.text_input(
+                        "인가 정원 / 현원", key=_wkey("facility_capacity"), placeholder="예: 인가정원 29인 / 현원 27인"
+                    )
+                with n4:
+                    live_form["lease_area"] = st.text_input(
+                        "시설 전용면적 (㎡)", key=_wkey("lease_area"), placeholder="예: 680.50"
+                    )
+                n5, n6 = st.columns(2)
+                with n5:
+                    live_form["building_structure"] = st.text_input(
+                        "건물 구조", key=_wkey("building_structure"), placeholder="철근콘크리트"
+                    )
+                with n6:
+                    live_form["building_use"] = st.text_input(
+                        "건물 용도", key=_wkey("building_use"), placeholder="노유자시설(노인의료복지시설)"
+                    )
+                live_form["lease_part"] = st.text_input(
+                    "양도 범위",
+                    key=_wkey("lease_part"),
+                    placeholder="예: 시설·비품·장기요양기관 지정 지위 및 운영권 일체",
+                )
+
+            elif selected_type == "premium_rights":
+                pr1, pr2 = st.columns(2)
+                with pr1:
+                    live_form["store_name"] = st.text_input(
+                        "상호 (점포명)", key=_wkey("store_name"), placeholder="예: 오남수제버거"
+                    )
+                with pr2:
+                    live_form["business_type"] = st.text_input(
+                        "영업 업종", key=_wkey("business_type"), placeholder="예: 일반음식점"
+                    )
+                live_form["address"] = st.text_input(
+                    "점포 소재지", key=_wkey("address"), placeholder="예: 경기도 남양주시 ..."
+                )
+                pr3, pr4 = st.columns([1.8, 1.0])
+                with pr3:
+                    live_form["lease_part"] = st.text_input(
+                        "점포 층·호수", key=_wkey("lease_part"), placeholder="예: 1층 105호 점포 전부"
+                    )
+                with pr4:
+                    live_form["lease_area"] = st.text_input(
+                        "점포 면적 (㎡)", key=_wkey("lease_area"), placeholder="예: 62.80"
+                    )
+                live_form["new_lease_summary"] = st.text_input(
+                    "신규 임대차 조건 요약",
+                    key=_wkey("new_lease_summary"),
+                    placeholder="예: 보증금 4,000만원 / 월세 220만원(VAT별도) / 24개월",
+                )
+
+            elif selected_type == "commercial_lease":
+                live_form["address"] = st.text_input(
+                    "상가 소재지", key=_wkey("address"), placeholder="예: 경기도 구리시 ..."
+                )
+                c1, c2, c3 = st.columns([1.2, 1.3, 1.0])
+                with c1:
+                    live_form["building_structure"] = st.text_input(
+                        "건물 구조", key=_wkey("building_structure"), placeholder="철근콘크리트"
+                    )
+                with c2:
+                    live_form["building_use"] = st.text_input(
+                        "건축물 용도", key=_wkey("building_use"), placeholder="제1종근린생활시설"
+                    )
+                with c3:
+                    live_form["building_area"] = st.text_input(
+                        "건물 연면적 (㎡)", key=_wkey("building_area"), placeholder="예: 1250.40"
+                    )
+                c4, c5 = st.columns([2.0, 1.0])
+                with c4:
+                    live_form["lease_part"] = st.text_input(
+                        "임대할 부분 (층·호수)", key=_wkey("lease_part"), placeholder="예: 1층 104호 전부"
+                    )
+                with c5:
+                    live_form["lease_area"] = st.text_input(
+                        "계약 면적 (㎡)", key=_wkey("lease_area"), placeholder="예: 56.20"
+                    )
+                live_form["business_type"] = st.text_input(
+                    "임차인 영업 업종/용도", key=_wkey("business_type"), placeholder="예: 커피전문점(휴게음식점)"
+                )
+
+            else:
+                live_form["address"] = st.text_input(
+                    "소재지 (도로명/지번 및 동·호수)",
+                    key=_wkey("address"),
+                    placeholder="예: 경기도 남양주시 오남읍 ...",
+                )
+                r1c1, r1c2, r1c3 = st.columns([1, 1.5, 1.2])
+                with r1c1:
+                    live_form["land_category"] = st.text_input(
+                        "지목", key=_wkey("land_category"), placeholder="예: 대"
+                    )
+                with r1c2:
+                    live_form["land_share_ratio"] = st.text_input(
+                        "대지권비율", key=_wkey("land_share_ratio"), placeholder="예: 33101/55.3748"
+                    )
+                with r1c3:
+                    live_form["land_area"] = st.text_input(
+                        "토지면적 (㎡)", key=_wkey("land_area"), placeholder="예: 32.01"
+                    )
+
+                r2c1, r2c2, r2c3 = st.columns([1.3, 1.2, 1.2])
+                with r2c1:
+                    live_form["building_structure"] = st.text_input(
+                        "건물 구조", key=_wkey("building_structure"), placeholder="예: 철근콘크리트"
+                    )
+                with r2c2:
+                    live_form["building_use"] = st.text_input(
+                        "건물 용도", key=_wkey("building_use"), placeholder="예: 공동주택"
+                    )
+                with r2c3:
+                    live_form["building_area"] = st.text_input(
+                        "건물 면적 (㎡)", key=_wkey("building_area"), placeholder="예: 84.9580"
+                    )
+
+                part_lbl = "매매대상 부분" if selected_type == "real_estate_sale" else "임대할 부분"
+                area_lbl = "매매 면적 (㎡)" if selected_type == "real_estate_sale" else "임대 면적 (㎡)"
+                r3c1, r3c2 = st.columns([2.2, 1.2])
+                with r3c1:
+                    live_form["lease_part"] = st.text_input(
+                        part_lbl, key=_wkey("lease_part"), placeholder="예: 108동 401호 전부"
+                    )
+                with r3c2:
+                    live_form["lease_area"] = st.text_input(
+                        area_lbl, key=_wkey("lease_area"), placeholder="예: 84.9580"
+                    )
+
+        # ② 계약내용 및 금액
+        with st.expander(f"② 계약내용 및 {amt_name}", expanded=True):
+            a1, a2 = st.columns(2)
+            with a1:
+                deposit_val = st.number_input(
+                    f"{amt_name}(원)", min_value=0, step=1_000_000, key=_wkey("deposit")
+                )
+                live_form["deposit"] = deposit_val
+                py_unit_hint = (
+                    f" · 평당 {format_price_per_pyeong(deposit_val, live_form.get('land_area'))}"
+                    if selected_type == "land_sale"
+                    and format_price_per_pyeong(deposit_val, live_form.get("land_area"))
+                    else ""
+                )
+                st.markdown(
+                    f'<div class="kr-amount-hint">금 {number_to_korean(deposit_val, "영")}원정 ({format_won(deposit_val)}{py_unit_hint})</div>',
+                    unsafe_allow_html=True,
+                )
+            with a2:
+                down_val = st.number_input(
+                    "계약금(원)", min_value=0, step=1_000_000, key=_wkey("down_payment")
+                )
+                live_form["down_payment"] = down_val
+                st.markdown(
+                    f'<div class="kr-amount-hint">금 {number_to_korean(down_val, "영")}원정</div>',
+                    unsafe_allow_html=True,
+                )
+
+            loan_val = 0
+            lease_dep_val = 0
+            escrow_val = 0
+
+            if selected_type == "land_sale":
+                loan_val = st.number_input(
+                    "융자금 승계 — 근저당권(원)",
+                    min_value=0,
+                    step=1_000_000,
+                    key=_wkey("loan_assumption"),
+                )
+                live_form["loan_assumption"] = loan_val
+                if loan_val > 0:
+                    st.markdown(
+                        f'<div class="kr-amount-hint">금 {number_to_korean(loan_val)}원정</div>',
+                        unsafe_allow_html=True,
+                    )
+
+            if selected_type == "real_estate_sale":
+                s1, s2 = st.columns(2)
+                with s1:
+                    loan_val = st.number_input(
+                        "융자금 승계(원)", min_value=0, step=1_000_000, key=_wkey("loan_assumption")
+                    )
+                    live_form["loan_assumption"] = loan_val
+                    if loan_val > 0:
+                        st.markdown(
+                            f'<div class="kr-amount-hint">금 {number_to_korean(loan_val)}원정</div>',
+                            unsafe_allow_html=True,
+                        )
+                with s2:
+                    lease_dep_val = st.number_input(
+                        "임대차보증금 승계(원)",
+                        min_value=0,
+                        step=1_000_000,
+                        key=_wkey("lease_deposit_assumption"),
+                    )
+                    live_form["lease_deposit_assumption"] = lease_dep_val
+                    if lease_dep_val > 0:
+                        st.markdown(
+                            f'<div class="kr-amount-hint">금 {number_to_korean(lease_dep_val)}원정</div>',
+                            unsafe_allow_html=True,
+                        )
+
+            if selected_type == "nursing_home_transfer":
+                e1, e2, e3 = st.columns([1.2, 0.8, 1.5])
+                with e1:
+                    escrow_val = st.number_input(
+                        "유보금(에스크로)(원)", min_value=0, step=1_000_000, key=_wkey("escrow_amount")
+                    )
+                    live_form["escrow_amount"] = escrow_val
+                    if escrow_val > 0:
+                        st.markdown(
+                            f'<div class="kr-amount-hint">금 {number_to_korean(escrow_val)}원정</div>',
+                            unsafe_allow_html=True,
+                        )
+                with e2:
+                    live_form["escrow_period"] = st.text_input(
+                        "유보기간", key=_wkey("escrow_period"), placeholder="예: 6개월"
+                    )
+                with e3:
+                    live_form["escrow_condition"] = st.text_input(
+                        "유보 정산 조건",
+                        key=_wkey("escrow_condition"),
+                        placeholder="현지조사·부당청구 환수·행정처분 대비",
+                    )
+
+            a3, a4 = st.columns(2)
+            with a3:
+                interim_val = st.number_input(
+                    "중도금(원)", min_value=0, step=1_000_000, key=_wkey("interim_payment")
+                )
+                live_form["interim_payment"] = interim_val
+                if interim_val > 0:
+                    st.markdown(
+                        f'<div class="kr-amount-hint">금 {number_to_korean(interim_val)}원정</div>',
+                        unsafe_allow_html=True,
+                    )
+            with a4:
+                auto_bal = st.checkbox("잔금 자동 계산", key=_wkey("auto_balance"))
+                live_form["auto_balance"] = auto_bal
+                if auto_bal:
+                    computed_bal = calculate_balance(
+                        deposit=deposit_val,
+                        down_payment=down_val,
+                        interim_payment=interim_val,
+                        loan_assumption=loan_val,
+                        lease_deposit_assumption=lease_dep_val,
+                        escrow_amount=escrow_val,
+                    )
+                    st.number_input(
+                        "잔금(원) [자동계산]",
+                        value=computed_bal,
+                        disabled=True,
+                        key=f"auto_bal_view_{st.session_state['_form_nonce']}_{selected_type}",
+                    )
+                    balance_val = computed_bal
+                else:
+                    balance_val = st.number_input(
+                        "잔금(원) [수동입력]", step=1_000_000, key=_wkey("balance")
+                    )
+                live_form["balance"] = balance_val
+                st.markdown(
+                    f'<div class="kr-amount-hint">금 {number_to_korean(balance_val, "영")}원정</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if selected_type in ("housing_wolse", "commercial_lease"):
+                st.markdown("---")
+                m1, m2, m3 = st.columns([1.3, 0.8, 0.9])
+                with m1:
+                    rent_val = st.number_input(
+                        "월 차임(원)", min_value=0, step=50_000, key=_wkey("monthly_rent")
+                    )
+                    live_form["monthly_rent"] = rent_val
+                    if rent_val > 0:
+                        st.markdown(
+                            f'<div class="kr-amount-hint">월 금 {number_to_korean(rent_val)}원정</div>',
+                            unsafe_allow_html=True,
+                        )
+                with m2:
+                    live_form["monthly_rent_day"] = st.text_input(
+                        "매월 지급일", key=_wkey("monthly_rent_day"), placeholder="예: 25"
+                    )
+                with m3:
+                    live_form["rent_pay_type"] = st.selectbox(
+                        "선불/후불", options=["선불", "후불"], key=_wkey("rent_pay_type")
+                    )
+
+                mf_cols = st.columns([1.2, 1.2, 1.4] if selected_type == "commercial_lease" else [1.2, 2.0])
+                with mf_cols[0]:
+                    live_form["management_fee"] = st.number_input(
+                        "월 관리비(원)", min_value=0, step=10_000, key=_wkey("management_fee")
+                    )
+                if selected_type == "commercial_lease":
+                    with mf_cols[1]:
+                        live_form["vat_type"] = st.selectbox(
+                            "부가가치세 구분",
+                            options=["부가가치세 별도", "부가가치세 포함", "면세/해당없음"],
+                            key=_wkey("vat_type"),
+                        )
+                    with mf_cols[2]:
+                        live_form["management_fee_note"] = st.text_input(
+                            "관리비 포함/별도 내역",
+                            key=_wkey("management_fee_note"),
+                            placeholder="예: 공과금 실비 정산, 부가세 별도",
+                        )
+                else:
+                    with mf_cols[1]:
+                        live_form["management_fee_note"] = st.text_input(
+                            "관리비 포함/별도 내역",
+                            key=_wkey("management_fee_note"),
+                            placeholder="예: 공용전기·청소 포함, 수도·가스 별도",
+                        )
+
+            st.markdown("---")
+            d1, d2, d3 = st.columns(3)
+            with d1:
+                live_form["down_receipt_person"] = st.text_input(
+                    "계약금 영수자", key=_wkey("down_receipt_person"), placeholder=f"{p1_role} 성명"
+                )
+            with d2:
+                use_interim_dt = st.checkbox("중도금 지급일 기입", key=_wkey("use_interim_date"))
+                live_form["use_interim_date"] = use_interim_dt
+                if use_interim_dt:
+                    live_form["interim_date"] = st.date_input("중도금 지급일", key=_wkey("interim_date"))
+            with d3:
+                live_form["balance_date"] = st.date_input("잔금 지급일", key=_wkey("balance_date"))
+
+            if selected_type in ("housing_jeonse", "housing_wolse", "commercial_lease"):
+                p1, p2, p3 = st.columns(3)
+                with p1:
+                    live_form["handover_date"] = st.date_input("인도일 (존속 시작)", key=_wkey("handover_date"))
+                with p2:
+                    live_form["lease_end_date"] = st.date_input("임대차 만료일", key=_wkey("lease_end_date"))
+                with p3:
+                    live_form["contract_date"] = st.date_input("계약 작성일", key=_wkey("contract_date"))
+                dur_str = calculate_lease_duration(live_form["handover_date"], live_form["lease_end_date"])
+                if dur_str:
+                    st.caption(f"⏱️ 자동 계산된 존속기간: **{dur_str}**")
+            else:
+                p1, p2 = st.columns(2)
+                handover_lbl = (
+                    "양도기준일 (인수인계일)"
+                    if selected_type == "nursing_home_transfer"
+                    else "인도일 (명도·이전일)"
+                )
+                with p1:
+                    live_form["handover_date"] = st.date_input(handover_lbl, key=_wkey("handover_date"))
+                with p2:
+                    live_form["contract_date"] = st.date_input("계약 작성일", key=_wkey("contract_date"))
+
+        # ③ 정밀 특약사항 선택기
+        with st.expander("③ 정밀 특약사항 선택기 (clauses.json 연동)", expanded=True):
+            rendered_clauses = render_clause_selector(selected_type, type_cfg, live_form)
+
+        # ④ 당사자 인적사항 (AI로 당사자 정보 추출 시 자동 펼침)
+        with st.expander(
+            f"④ 당사자 인적사항 ({p1_role} / {p2_role})",
+            expanded=bool(st.session_state.get("_expand_party_section", False)),
+        ):
+            st.markdown(f"**{p1_role}**")
+            live_form["lessor_address"] = st.text_input(f"{p1_role} 주소", key=_wkey("lessor_address"))
+            l1, l2, l3, l4 = st.columns([1.4, 1.2, 1.1, 1.0])
+            with l1:
+                live_form["lessor_rrn"] = st.text_input(
+                    f"{p1_role} 주민(사업자)번호", key=_wkey("lessor_rrn"), placeholder="000000-0000000"
+                )
+            with l2:
+                live_form["lessor_phone1"] = st.text_input(
+                    f"{p1_role} 전화1", key=_wkey("lessor_phone1"), placeholder="010-0000-0000"
+                )
+            with l3:
+                live_form["lessor_phone2"] = st.text_input(f"{p1_role} 전화2", key=_wkey("lessor_phone2"))
+            with l4:
+                live_form["lessor_name"] = st.text_input(f"{p1_role} 성명", key=_wkey("lessor_name"))
+
+            st.markdown("---")
+            st.markdown(f"**{p2_role}**")
+            live_form["lessee_address"] = st.text_input(f"{p2_role} 주소", key=_wkey("lessee_address"))
+            t1, t2, t3, t4 = st.columns([1.4, 1.2, 1.1, 1.0])
+            with t1:
+                live_form["lessee_rrn"] = st.text_input(
+                    f"{p2_role} 주민(사업자)번호", key=_wkey("lessee_rrn"), placeholder="000000-0000000"
+                )
+            with t2:
+                live_form["lessee_phone1"] = st.text_input(
+                    f"{p2_role} 전화1", key=_wkey("lessee_phone1"), placeholder="010-0000-0000"
+                )
+            with t3:
+                live_form["lessee_phone2"] = st.text_input(f"{p2_role} 전화2", key=_wkey("lessee_phone2"))
+            with t4:
+                live_form["lessee_name"] = st.text_input(f"{p2_role} 성명", key=_wkey("lessee_name"))
+
+        # ⑤ 개업공인중개사 정보
+        with st.expander("⑤ 개업공인중개사 정보 (공동중개 지원)", expanded=False):
+            st.markdown("**주 개업공인중개사 (좌측란)**")
+            b1, b2 = st.columns(2)
+            with b1:
+                live_form["broker1_office"] = st.text_input("사무소 명칭", key=_wkey("broker1_office"))
+                live_form["broker1_rep"] = st.text_input("대표 성명", key=_wkey("broker1_rep"))
+                live_form["broker1_reg_no"] = st.text_input("등록번호", key=_wkey("broker1_reg_no"))
+            with b2:
+                live_form["broker1_address"] = st.text_input("사무소 소재지", key=_wkey("broker1_address"))
+                live_form["broker1_phone"] = st.text_input("전화번호", key=_wkey("broker1_phone"))
+                live_form["broker1_associate"] = st.text_input(
+                    "소속공인중개사 (선택)", key=_wkey("broker1_associate")
+                )
+
+            st.markdown("---")
+            use_co = st.checkbox("공동중개사 입력 (우측란 활성화)", key=_wkey("use_co_broker"))
+            live_form["use_co_broker"] = use_co
+            if use_co:
+                cb1, cb2 = st.columns(2)
+                with cb1:
+                    live_form["broker2_office"] = st.text_input("공동중개 사무소 명칭", key=_wkey("broker2_office"))
+                    live_form["broker2_rep"] = st.text_input("공동중개 대표 성명", key=_wkey("broker2_rep"))
+                    live_form["broker2_reg_no"] = st.text_input("공동중개 등록번호", key=_wkey("broker2_reg_no"))
+                with cb2:
+                    live_form["broker2_address"] = st.text_input("공동중개 사무소 소재지", key=_wkey("broker2_address"))
+                    live_form["broker2_phone"] = st.text_input("공동중개 전화번호", key=_wkey("broker2_phone"))
+                    live_form["broker2_associate"] = st.text_input(
+                        "공동중개 소속공인중개사", key=_wkey("broker2_associate")
+                    )
+
+    # canonical 세션 동기화
+    st.session_state["_form_data"] = dict(live_form)
+
+    # 임시저장 / 최종 누적 저장 처리 (live_form 및 특약 상태 수집 직후 실행)
+    if save_draft_clicked or save_final_clicked:
+        target_status = "completed" if save_final_clicked else "draft"
+        storage_payload = _build_storage_payload(live_form, selected_type, type_cfg)
+        save_contract(
+            contract_id=current_cid,
+            contract_type=selected_type,
+            contract_type_label=type_cfg["label"],
+            status=target_status,
+            payload=storage_payload,
+        )
+        st.session_state["current_contract_status"] = target_status
+        msg = (
+            f"✅ 최종 누적 저장 완료 ({current_cid})"
+            if target_status == "completed"
+            else f"💾 임시저장 완료 ({current_cid}) — 브라우저를 닫아도 이어서 작성할 수 있습니다."
+        )
+        st.toast(msg)
+        st.rerun()
+
+    # ==================== 공통 컨텍스트 빌드 및 교차검증 ====================
+    form_payload = dict(live_form)
+    form_payload["contract_type"] = selected_type
+    form_payload["contract_type_label"] = type_cfg["label"]
+    form_payload["form_title"] = type_cfg["form_title"]
+    form_payload["color_mode"] = color_mode
+    form_payload["draft_mode"] = draft_mode
+    form_payload["interim_date"] = live_form["interim_date"] if live_form.get("use_interim_date") else None
+    form_payload["rendered_clauses"] = rendered_clauses
+
+    context = build_contract_context(form_payload)
+    is_valid = context["is_valid"]
+
+    # ==================== 우측 실시간 A4 미리보기 및 출력 제어 ====================
+    with col_preview:
+        if is_valid:
+            st.success(f"✅ {context['validation_msg']}")
+        else:
+            st.error(f"🚨 {context['validation_msg']} — 금액을 입력·일치시켜야 다운로드가 활성화됩니다.")
+
+        est_lines = context["estimated_clause_lines"]
+        mode_badge = "🎨 컬러 인쇄용" if color_mode == "color" else "🖨️ 흑백 인쇄용"
+        if context["is_annex"]:
+            st.info(
+                f"{mode_badge} · 📄 특약 예상 분량 **{est_lines}줄** (한도 {MAX_INLINE_CLAUSE_LINES}줄 초과) → "
+                "본문 **`특약사항 별지 참조`** 및 **2페이지 [별지] 특약사항** 자동 생성됨"
+            )
+        else:
+            st.caption(
+                f"{mode_badge} · 📏 특약 본문 분량: **{est_lines} / {MAX_INLINE_CLAUSE_LINES}줄** (A4 1장 내 출력)"
+            )
+
+        date_tag = str(live_form.get("contract_date", date.today())).replace("-", "")
+        color_tag = "_컬러" if color_mode == "color" else "_흑백"
+        draft_tag = "_초안" if draft_mode else ""
+        base_filename = f"{type_cfg['label'].replace(' ', '_')}_계약서_{date_tag}{color_tag}{draft_tag}"
+
+        printable_html = render_html(context, include_print_toolbar=True)
+        has_user_hwpx = has_custom_hwpx_template(selected_type)
+
+        dl_cols = st.columns(3 if has_user_hwpx else 2)
+
+        with dl_cols[0]:
+            if is_valid:
+                pdf_bytes, pdf_msg = generate_pdf(context)
+                if pdf_bytes is not None:
+                    st.download_button(
+                        "📄 PDF 다운로드 (A4)",
+                        data=pdf_bytes,
+                        file_name=f"{base_filename}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        type="primary",
+                    )
+                else:
+                    st.download_button(
+                        "🖨️ PDF 인쇄용 HTML (A4 100%)",
+                        data=printable_html.encode("utf-8"),
+                        file_name=f"{base_filename}_인쇄용.html",
+                        mime="text/html",
+                        use_container_width=True,
+                        type="primary",
+                        help=pdf_msg,
+                    )
+            else:
+                st.button("🖨️ PDF 인쇄용 HTML (A4 100%)", disabled=True, use_container_width=True)
+
+        with dl_cols[1]:
+            if is_valid:
+                docx_bytes = generate_docx(context)
+                st.download_button(
+                    "📝 Word (.docx · 한글에서도 열림)",
+                    data=docx_bytes,
+                    file_name=f"{base_filename}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                )
+            else:
+                st.button("📝 Word (.docx · 한글에서도 열림)", disabled=True, use_container_width=True)
+
+        if has_user_hwpx:
+            with dl_cols[2]:
+                if is_valid:
+                    hwpx_bytes = generate_hwpx(context)
+                    st.download_button(
+                        "📘 사용자 한글 (.hwpx)",
+                        data=hwpx_bytes,
+                        file_name=f"{base_filename}.hwpx",
+                        mime="application/hwp+zip",
+                        use_container_width=True,
+                    )
+                else:
+                    st.button("📘 사용자 한글 (.hwpx)", disabled=True, use_container_width=True)
+
+        hwpx_panel_title = (
+            f"📘 사용자 한글(.hwpx) 템플릿 등록됨 — {type_cfg['label']} 전용 .hwpx 활성화"
+            if has_user_hwpx
+            else "📘 사용자 한글(.hwpx) 템플릿 업로드 (선택 · 미등록 시 Word .docx 사용 권장)"
+        )
+        with st.expander(hwpx_panel_title, expanded=False):
+            st.caption(
+                "💡 **실무 팁**: 위 **Word(.docx)** 파일은 MS Word뿐 아니라 **아래아한글에서도 바로 열리고 편집**되며, "
+                "선택한 컬러/흑백 모드가 그대로 적용됩니다. 사무소 전용 `.hwpx` 서식이 있을 경우 여기에 업로드해 사용하세요."
+            )
+            uploaded_hwpx = st.file_uploader(
+                f"{type_cfg['label']} 전용 .hwpx 파일 선택",
+                type=["hwpx"],
+                key=f"hwpx_uploader_{selected_type}",
+            )
+            u_col1, u_col2 = st.columns(2)
+            with u_col1:
+                if st.button(
+                    "📤 사용자 .hwpx 등록",
+                    disabled=uploaded_hwpx is None,
+                    use_container_width=True,
+                    key=f"hwpx_save_btn_{selected_type}",
+                ):
+                    if uploaded_hwpx is not None:
+                        ok_up, up_msg, found_tags = save_custom_hwpx_template(
+                            selected_type, uploaded_hwpx.getvalue()
+                        )
+                        if ok_up:
+                            st.success(up_msg)
+                            if found_tags:
+                                st.info("인식된 치환 태그: " + ", ".join(f"`{{{{{t}}}}}`" for t in found_tags[:20]))
+                            st.rerun()
+                        else:
+                            st.error(up_msg)
+            with u_col2:
+                if st.button(
+                    "🗑️ 등록된 .hwpx 해제",
+                    disabled=not has_user_hwpx,
+                    use_container_width=True,
+                    key=f"hwpx_reset_btn_{selected_type}",
+                ):
+                    reset_custom_hwpx_template(selected_type)
+                    st.success("사용자 .hwpx 템플릿이 해제되었습니다.")
+                    st.rerun()
+
+            if st.checkbox("지원 치환 태그 목록 보기", key=f"show_tags_{selected_type}"):
+                tag_md = "\n".join(f"- `{tag}` : {desc}" for tag, desc in HWPX_PLACEHOLDER_GUIDE)
+                st.markdown(tag_md)
+
+        # 실시간 A4 미리보기 iframe
+        preview_height = 1850 if context["is_annex"] else 1040
+        if hasattr(st, "iframe"):
+            st.iframe(printable_html, height=preview_height)
+        else:
+            components.html(printable_html, height=preview_height, scrolling=True)
+
+
+if __name__ == "__main__":
+    main()

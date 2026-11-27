@@ -1,0 +1,137 @@
+{% extends "_base_contract.html" %}
+
+{% block intro_sentence %}
+아래 부동산에 대하여 매도인과 매수인은 합의하에 다음과 같이 매매계약을 체결한다.
+{% endblock %}
+
+{% block property_section %}
+<div class="section-title">1. 부동산의 표시</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 11%;" /><col style="width: 6.5%;" /><col style="width: 22.5%;" />
+    <col style="width: 8.5%;" /><col style="width: 25.5%;" /><col style="width: 7%;" /><col style="width: 19%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">소 재 지</td>
+    <td colspan="6" class="val-left emph-addr">{{ address }}</td>
+  </tr>
+  <tr>
+    <td class="lbl">토&nbsp;&nbsp;&nbsp;&nbsp;지</td>
+    <td class="lbl-tight">지목</td>
+    <td class="val-left">{{ land_category }}</td>
+    <td class="lbl-tight">대지권<br/>비&nbsp;&nbsp;율</td>
+    <td class="val-left">{{ land_share_ratio }}</td>
+    <td class="lbl-tight">면적</td>
+    <td class="val-right">{{ land_area }}{% if land_area %} ㎡{% else %}㎡{% endif %}</td>
+  </tr>
+  <tr>
+    <td class="lbl">건&nbsp;&nbsp;&nbsp;&nbsp;물</td>
+    <td class="lbl-tight">구조</td>
+    <td class="val-left">{{ building_structure }}</td>
+    <td class="lbl-tight">용도</td>
+    <td class="val-left">{{ building_use }}</td>
+    <td class="lbl-tight">면적</td>
+    <td class="val-right">{{ building_area }}{% if building_area %} ㎡{% else %}㎡{% endif %}</td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">매매대상</td>
+    <td colspan="4" class="val-left">{{ lease_part }}</td>
+    <td class="lbl-tight">면적</td>
+    <td class="val-right">{{ lease_area }}{% if lease_area %} ㎡{% else %}㎡{% endif %}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block payment_section %}
+<div class="section-title">2. 계약내용</div>
+<div class="article-intro">
+  <strong>제1조 [매매대금 및 지급시기]</strong>
+  위 부동산의 매매에 관하여 매수인은 매매대금을 아래와 같이 지불하기로 한다.
+</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 13%;" /><col style="width: 30%;" /><col style="width: 32%;" /><col style="width: 8.5%;" /><col style="width: 16.5%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">매매대금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ deposit_kr }}</td>
+    <td colspan="3" class="val-left emph-money">원정 (&nbsp;{{ deposit_won }}&nbsp;)</td>
+  </tr>
+  <tr>
+    <td class="lbl">계 약 금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ down_payment_kr }}</td>
+    <td class="val-left">원정은 계약시에 지불하고 영수함.</td>
+    <td class="lbl-tight">영수자</td>
+    <td>
+      <div class="seal-cell">
+        <span>{{ down_receipt_person }}</span>
+        <span class="seal-mark">(인)</span>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">융자금 승계</td>
+    <td class="val-left val-bold">ㅡ금&nbsp;{{ loan_assumption_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은 매수인이 금융기관 채무를 승계함.{% if loan_assumption_comma %} (₩ {{ loan_assumption_comma }}){% endif %}
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">임대보증금<br/>승&nbsp;&nbsp;&nbsp;&nbsp;계</td>
+    <td class="val-left val-bold">ㅡ금&nbsp;{{ lease_deposit_assumption_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은 현 임차인의 임대차보증금을 승계함.{% if lease_deposit_assumption_comma %} (₩ {{ lease_deposit_assumption_comma }}){% endif %}
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">중 도 금</td>
+    <td class="val-left val-bold">ㅡ금&nbsp;{{ interim_payment_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;&nbsp;<span class="date-y">{{ interim_year }}</span>년&nbsp;<span class="date-md">{{ interim_month }}</span>월&nbsp;<span class="date-md">{{ interim_day }}</span>일에 지불하며,
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">잔&nbsp;&nbsp;&nbsp;&nbsp;금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ balance_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;<span class="emph-date"><span class="date-y">{{ balance_year }}</span>년&nbsp;<span class="date-md">{{ balance_month }}</span>월&nbsp;<span class="date-md">{{ balance_day }}</span>일</span>에 지불한다.
+    </td>
+  </tr>
+</table>
+<div class="sub-note">
+  위 제1조의 매매대금은 개업공인중개사의 입회하에 지불하기로 한다.
+</div>
+{% endblock %}
+
+{% block articles_section %}
+<div class="articles-box">
+  <div class="article-item">
+    <strong>제2조 [소유권 이전 등]</strong>
+    매도인은 매매대금의 잔금 수령과 동시에 매수인에게 소유권이전등기에 필요한 모든 서류를 교부하고 등기절차에 협력하며, 위 부동산의 인도일은 <span class="emph-date">{{ handover_date_kr }}</span>로 한다.
+  </div>
+  <div class="article-item">
+    <strong>제3조 [제한물권 등의 소멸]</strong>
+    매도인은 위의 부동산에 설정된 저당권, 지상권, 임차권 등 소유권의 행사를 제한하는 사유가 있거나, 제세공과금 기타 부담금의 미납금 등이 있을 때에는 잔금 수수일까지 그 권리의 하자 및 부담 등을 제거하여 완전한 소유권을 매수인에게 이전한다. 다만, 승계하기로 합의하는 권리 및 금액은 그러하지 아니하다.
+  </div>
+  <div class="article-item">
+    <strong>제4조 [지방세 등]</strong>
+    위 부동산에 관하여 발생한 수익의 귀속과 제세공과금 등의 부담금에 대하여는 위 부동산의 인도일을 기준으로 하되, 지방세의 납부의무 및 납부책임은 지방세법의 규정에 의한다.
+  </div>
+  <div class="article-item">
+    <strong>제5조 [계약의 해제]</strong>
+    매수인이 매도인에게 중도금(중도금이 없을 때에는 잔금)을 지불하기 전까지 매도인은 계약금의 배액을 상환하고, 매수인은 계약금을 포기하고 본 계약을 해제할 수 있다.
+  </div>
+  <div class="article-item">
+    <strong>제6조 [채무불이행과 손해배상]</strong>
+    매도인 또는 매수인이 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 그리고 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.
+  </div>
+  <div class="article-item">
+    <strong>제7조 [중개보수]</strong>
+    개업공인중개사는 매도인과 매수인이 본 계약을 불이행함으로 인한 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지불하며, 개업공인중개사의 고의나 과실 없이 본 계약이 무효·취소 또는 해제되어도 중개보수는 지급한다.
+  </div>
+  <div class="article-item">
+    <strong>제8조 [확인설명서 등 교부]</strong>
+    개업공인중개사는 중개대상물 확인·설명서를 작성하고 업무보증관계증서(공제증서 등) 사본을 첨부하여 거래계약서와 동시에 거래당사자 쌍방에게 교부한다.
+  </div>
+</div>
+{% endblock %}

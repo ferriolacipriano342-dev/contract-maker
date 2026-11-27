@@ -1,0 +1,110 @@
+{% extends "_base_contract.html" %}
+
+{% block intro_sentence %}
+아래 상가 점포의 시설·집기비품 및 영업권(권리금)에 대하여 양도인과 양수인은 상호 합의하에 다음과 같이 권리금 계약을 체결한다.
+{% endblock %}
+
+{% block property_section %}
+<div class="section-title">1. 대상 점포 및 신규 임대차 조건 요약</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 14%;" /><col style="width: 36%;" /><col style="width: 14%;" /><col style="width: 36%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">상호 (점포명)</td>
+    <td class="val-left emph-addr">{{ store_name }}</td>
+    <td class="lbl">영업 업종</td>
+    <td class="val-left">{{ business_type }}</td>
+  </tr>
+  <tr>
+    <td class="lbl">소 재 지</td>
+    <td colspan="3" class="val-left emph-addr">{{ address }}</td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">점포 층·호수</td>
+    <td class="val-left">{{ lease_part }}</td>
+    <td class="lbl">점포 면적</td>
+    <td class="val-right">{{ lease_area or building_area }}{% if lease_area or building_area %} ㎡{% else %}㎡{% endif %}</td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">신규 임대차<br/>조건 요약</td>
+    <td colspan="3" class="val-left val-bold">{{ new_lease_summary if new_lease_summary else '임대인과 신규 임대차계약 체결 조건 (보증금·월차임·기간 별도 협의)' }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block payment_section %}
+<div class="section-title">2. 권리금 총액 및 지급시기</div>
+<div class="article-intro">
+  <strong>제1조 [권리금 총액 및 지급방법]</strong>
+  양도인과 양수인은 영업시설·비품 및 영업권 양도 대가(권리금)를 아래와 같이 지불하기로 약정한다.
+</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 13%;" /><col style="width: 30%;" /><col style="width: 32%;" /><col style="width: 8.5%;" /><col style="width: 16.5%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">권리금 총액</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ deposit_kr }}</td>
+    <td colspan="3" class="val-left emph-money">원정 (&nbsp;{{ deposit_won }}&nbsp;)</td>
+  </tr>
+  <tr>
+    <td class="lbl">계 약 금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ down_payment_kr }}</td>
+    <td class="val-left">원정은 계약시에 지불하고 영수함.</td>
+    <td class="lbl-tight">영수자</td>
+    <td>
+      <div class="seal-cell">
+        <span>{{ down_receipt_person }}</span>
+        <span class="seal-mark">(인)</span>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">중 도 금</td>
+    <td class="val-left val-bold">ㅡ금&nbsp;{{ interim_payment_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;&nbsp;<span class="date-y">{{ interim_year }}</span>년&nbsp;<span class="date-md">{{ interim_month }}</span>월&nbsp;<span class="date-md">{{ interim_day }}</span>일에 지불하며,
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">잔&nbsp;&nbsp;&nbsp;&nbsp;금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ balance_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;<span class="emph-date"><span class="date-y">{{ balance_year }}</span>년&nbsp;<span class="date-md">{{ balance_month }}</span>월&nbsp;<span class="date-md">{{ balance_day }}</span>일</span>에 지불한다.
+    </td>
+  </tr>
+</table>
+<div class="sub-note">
+  본 권리금의 지급 및 시설·영업권 인계는 개업공인중개사의 입회하에 진행하기로 한다.
+</div>
+{% endblock %}
+
+{% block articles_section %}
+<div class="articles-box">
+  <div class="article-item">
+    <strong>제2조 [시설·비품 인도 및 영업권 양도]</strong>
+    양도인은 잔금 수령과 동시에 점포 내 인테리어·시설·집기비품 일체 및 영업권을 현 상태로 양수인에게 인도하며(인도일: <span class="emph-date">{{ handover_date_kr }}</span>), 영업신고·인허가 지위승계 및 사업자등록 절차에 적극 협조한다.
+  </div>
+  <div class="article-item">
+    <strong>제3조 [신규 임대차계약 체결 조건부 효력]</strong>
+    본 권리금 계약은 양수인이 건물 임대인과 위 제1항 기재 조건으로 신규 임대차계약을 정상 체결하는 것을 효력 발생 조건으로 하며, 임대인의 거절 등 양수인의 귀책사유 없이 임대차계약이 성립되지 않을 경우 본 계약은 자동 해제되고 양도인은 수령한 금원 전액을 즉시 반환한다.
+  </div>
+  <div class="article-item">
+    <strong>제4조 [기존 채무·공과금 및 제세 정산]</strong>
+    양도인은 잔금일 이전까지 발생한 차임, 관리비, 전기·수도·가스·통신요금, 국세·지방세, 거래처 외상대금 및 종업원 급여·퇴직금 등 일체의 채무를 전액 정산하여 양수인에게 부담이 없도록 한다.
+  </div>
+  <div class="article-item">
+    <strong>제5조 [경업금지 의무]</strong>
+    양도인은 상법 제41조 및 본 계약의 취지에 따라 양도일 이후 인근 동일 상권(특약으로 별도 기간·반경 약정 시 그에 따름) 내에서 동일·유사 업종을 영위하여 양수인의 영업을 침해하지 않기로 한다.
+  </div>
+  <div class="article-item">
+    <strong>제6조 [계약의 해제 및 손해배상]</strong>
+    중도금(없을 때는 잔금) 지급 전까지 양도인은 계약금의 배액을 상환하고 양수인은 계약금을 포기하고 본 계약을 해제할 수 있으며, 계약 불이행 시 서면 최고 후 해제 및 계약금을 기준으로 손해배상을 청구할 수 있다.
+  </div>
+  <div class="article-item">
+    <strong>제7조 [용역·중개보수 및 보관]</strong>
+    권리금 양도양수 알선·컨설팅 보수는 별도 약정에 따르며, 당사자 일방의 계약 불이행에 대하여 중개사무소는 책임을 지지 않는다.
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "_base_contract.html" %}
+
+{% block intro_sentence %}
+아래 부동산에 대하여 임대인과 임차인은 합의하에 다음과 같이 임대차계약을 체결한다.
+{% endblock %}
+
+{% block property_section %}
+<div class="section-title">1. 부동산의 표시</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 11%;" /><col style="width: 6.5%;" /><col style="width: 22.5%;" />
+    <col style="width: 8.5%;" /><col style="width: 25.5%;" /><col style="width: 7%;" /><col style="width: 19%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">소 재 지</td>
+    <td colspan="6" class="val-left emph-addr">{{ address }}</td>
+  </tr>
+  <tr>
+    <td class="lbl">토&nbsp;&nbsp;&nbsp;&nbsp;지</td>
+    <td class="lbl-tight">지목</td>
+    <td class="val-left">{{ land_category }}</td>
+    <td class="lbl-tight">대지권<br/>비&nbsp;&nbsp;율</td>
+    <td class="val-left">{{ land_share_ratio }}</td>
+    <td class="lbl-tight">면적</td>
+    <td class="val-right">{{ land_area }}{% if land_area %} ㎡{% else %}㎡{% endif %}</td>
+  </tr>
+  <tr>
+    <td class="lbl">건&nbsp;&nbsp;&nbsp;&nbsp;물</td>
+    <td class="lbl-tight">구조</td>
+    <td class="val-left">{{ building_structure }}</td>
+    <td class="lbl-tight">용도</td>
+    <td class="val-left">{{ building_use }}</td>
+    <td class="lbl-tight">면적</td>
+    <td class="val-right">{{ building_area }}{% if building_area %} ㎡{% else %}㎡{% endif %}</td>
+  </tr>
+  <tr>
+    <td class="lbl-tight">임대할부분</td>
+    <td colspan="4" class="val-left val-bold">{{ lease_part }}</td>
+    <td class="lbl-tight">면적</td>
+    <td class="val-right">{{ lease_area }}{% if lease_area %} ㎡{% else %}㎡{% endif %}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block payment_section %}
+<div class="section-title">2. 계약내용</div>
+<div class="article-intro">
+  <strong>제1조 [보증금 및 지불시기]</strong>
+  위 부동산의 임대차에 관하여 보증금과 지불시기를 다음과 같이 약정한다.
+</div>
+<table class="contract-table">
+  <colgroup>
+    <col style="width: 11%;" /><col style="width: 31%;" /><col style="width: 33%;" /><col style="width: 8.5%;" /><col style="width: 16.5%;" />
+  </colgroup>
+  <tr>
+    <td class="lbl">보 증 금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ deposit_kr }}</td>
+    <td colspan="3" class="val-left emph-money">원정 (&nbsp;{{ deposit_won }}&nbsp;)</td>
+  </tr>
+  <tr>
+    <td class="lbl">계 약 금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ down_payment_kr }}</td>
+    <td class="val-left">원정은 계약시에 지불하고 영수함.</td>
+    <td class="lbl-tight">영수자</td>
+    <td>
+      <div class="seal-cell">
+        <span>{{ down_receipt_person }}</span>
+        <span class="seal-mark">(인)</span>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">중 도 금</td>
+    <td class="val-left val-bold">ㅡ금&nbsp;{{ interim_payment_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;&nbsp;<span class="date-y">{{ interim_year }}</span>년&nbsp;<span class="date-md">{{ interim_month }}</span>월&nbsp;<span class="date-md">{{ interim_day }}</span>일에 지불하며,
+    </td>
+  </tr>
+  <tr>
+    <td class="lbl">잔&nbsp;&nbsp;&nbsp;&nbsp;금</td>
+    <td class="val-left emph-money">ㅡ금&nbsp;{{ balance_kr }}</td>
+    <td colspan="3" class="val-left">
+      원정은&nbsp;<span class="emph-date"><span class="date-y">{{ balance_year }}</span>년&nbsp;<span class="date-md">{{ balance_month }}</span>월&nbsp;<span class="date-md">{{ balance_day }}</span>일</span>에 지불한다.
+    </td>
+  </tr>
+</table>
+<div class="sub-note">
+  위 제1항의 보증금은 개업공인중개사의 입회하에 지불하기로 한다.
+</div>
+{% endblock %}
+
+{% block articles_section %}
+<div class="articles-box">
+  <div class="article-item">
+    <strong>제2조 [존속기간]</strong>
+    임대인은 위 부동산을 임대차 목적대로 사용·수익할 수 있는 상태로
+    <span class="emph-date">{{ handover_date_kr }}</span> 까지 임차인에게 인도하며, 임대차기간은 인도일로부터
+    <span class="emph-date">{{ lease_end_date_kr }} 까지로 한다.{% if lease_duration %}({{ lease_duration }}){% endif %}</span>
+  </div>
+  <div class="article-item">
+    <strong>제3조 [용도변경 및 전대 등]</strong>
+    임차인은 임대인의 동의 없이는 위 부동산의 용도나 구조 등을 변경하거나 전대·임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도에 사용할 수 없다.
+  </div>
+  <div class="article-item">
+    <strong>제4조 [계약의 종료]</strong>
+    임대차 계약이 종료된 경우 임차인은 위 부동산을 원상으로 회복하여 임대인에게 반환한다. 이러한 경우 임대인은 보증금을 임차인에게 반환하고, 연체임대료 또는 손해배상 금액이 있을 때는 이들을 제하고 그 잔액을 반환한다.
+  </div>
+  <div class="article-item">
+    <strong>제5조 [계약의 해제]</strong>
+    임차인이 임대인에게 중도금(중도금이 없을 때는 잔금)을 지불하기 전까지 임대인은 계약금의 배액을 상환하고 임차인은 계약금을 포기하고 이 계약을 해제할 수 있다.
+  </div>
+  <div class="article-item">
+    <strong>제6조 [채무불이행과 손해배상]</strong>
+    임대인 또는 임차인이 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 그리고 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.
+  </div>
+  <div class="article-item">
+    <strong>제7조 [중개보수]</strong>
+    개업공인중개사는 임대인 또는 임차인의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지불하며, 개업공인중개사의 고의나 과실 없이 본 계약이 무효·취소 또는 해제되어도 중개보수는 지급한다. 공동 중개인 경우에 임대인과 임차인은 자신이 중개 의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.
+  </div>
+  <div class="article-item">
+    <strong>제8조 [확인설명서 등 교부]</strong>
+    개업공인중개사는 중개대상물 확인·설명서를 작성하고 업무보증관계증서(공제증서 등) 사본을 첨부하여 거래계약서와 동시에 거래당사자 쌍방에게 교부한다.
+  </div>
+</div>
+{% endblock %}
