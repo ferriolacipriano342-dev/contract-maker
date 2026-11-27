@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 from datetime import date, timedelta
 from pathlib import Path
@@ -273,37 +274,77 @@ def get_ordered_type_keys(clauses_lib: dict[str, Any]) -> list[str]:
     return ordered
 
 
-def get_configured_pin() -> str:
+def get_configured_password() -> str:
+    """st.secrets['APP_PASSWORD']에서 접속 비밀번호를 읽는다. 미설정 시 빈 문자열('') 반환."""
     try:
-        pin = st.secrets.get("APP_PIN", "0000")
-        return str(pin).strip() or "0000"
+        pw = st.secrets.get("APP_PASSWORD")
+        return str(pw).strip() if pw is not None else ""
     except Exception:
-        return "0000"
+        return ""
 
 
-def render_pin_lock_screen() -> None:
-    expected_pin = get_configured_pin()
-    _, center, _ = st.columns([1, 1.2, 1])
+def render_password_lock_screen(expected_password: str) -> None:
+    """외부 접속 차단용 중앙 로그인 잠금 화면 (비밀번호 미인증 시 본 화면·사이드바 완전 차단)."""
+    st.markdown(
+        """
+        <style>
+          [data-testid="stSidebar"],
+          [data-testid="collapsedControl"] {
+            display: none !important;
+          }
+          .lock-card-header {
+            text-align: center;
+            padding: 1.4rem 1.2rem 1.1rem 1.2rem;
+            border-radius: 14px 14px 0 0;
+            background: linear-gradient(135deg, #0b1c3d 0%, #163368 60%, #1d4ed8 100%);
+            border-bottom: 3.5px solid #f59e0b;
+            color: #ffffff;
+            margin-top: 4rem;
+          }
+          .lock-card-header h2 {
+            margin: 0.35rem 0 0.2rem 0;
+            font-size: 1.7rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            color: #ffffff;
+          }
+          .lock-card-header p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #dbeafe;
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    _, center, _ = st.columns([1.15, 1.1, 1.15])
     with center:
-        st.markdown("## 🔐 부동산·요양원 통합 계약서 작성기")
-        st.info(
-            "보안을 위해 4자리 PIN 번호를 입력해 주세요. (초기 기본값: `0000`, "
-            "`.streamlit/secrets.toml`의 `APP_PIN`으로 변경 가능)"
+        st.markdown(
+            """
+            <div class="lock-card-header">
+              <div style="font-size: 2rem;">🔐</div>
+              <h2>통합계약서</h2>
+              <p>인가된 사용자만 접속할 수 있습니다.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        with st.form("pin_login_form", clear_on_submit=False):
-            entered = st.text_input("4자리 PIN 번호", type="password", max_chars=4, placeholder="••••")
-            submitted = st.form_submit_button("잠금 해제", use_container_width=True, type="primary")
+        with st.form("password_login_form", clear_on_submit=False):
+            entered = st.text_input(
+                "비밀번호",
+                type="password",
+                placeholder="접속 비밀번호를 입력하세요",
+            )
+            submitted = st.form_submit_button("로그인", use_container_width=True, type="primary")
             if submitted:
-                if entered == expected_pin:
+                if hmac.compare_digest(entered, expected_password):
                     st.session_state["authenticated"] = True
                     st.rerun()
                 else:
-                    st.error("PIN 번호가 일치하지 않습니다.")
+                    st.error("비밀번호가 올바르지 않습니다.")
 
-        st.caption(
-            "🛡️ 로컬 전용 보관: 저장된 계약서와 증빙서류는 외부 클라우드가 아닌 "
-            "내 PC의 `data/contracts.db` 및 `data/attachments/` 폴더에만 안전하게 저장됩니다."
-        )
+        st.caption("🛡️ 비밀번호는 Streamlit Secrets(`APP_PASSWORD`)에서 안전하게 검증됩니다.")
 
 
 def _empty_form_values() -> dict[str, Any]:
@@ -1315,8 +1356,10 @@ def render_clause_selector(
 
 
 def main() -> None:
-    if not st.session_state.get("authenticated", False):
-        render_pin_lock_screen()
+    configured_password = get_configured_password()
+    if configured_password and not st.session_state.get("authenticated", False):
+        render_password_lock_screen(configured_password)
+        st.stop()
         return
 
     init_db()
@@ -1454,9 +1497,17 @@ def main() -> None:
             st.rerun()
     with ctrl6:
         st.write("")
-        if st.button("🔒 잠금", use_container_width=True):
-            st.session_state["authenticated"] = False
-            st.rerun()
+        st.button(
+            "🔒 잠금",
+            use_container_width=True,
+            disabled=not bool(configured_password),
+            on_click=lambda: st.session_state.__setitem__("authenticated", False),
+            help=(
+                "화면을 즉시 잠그고 비밀번호 입력 화면으로 돌아갑니다."
+                if configured_password
+                else "APP_PASSWORD가 설정되지 않은 로컬 환경에서는 비밀번호 잠금이 비활성화되어 있습니다."
+            ),
+        )
 
     type_cfg = clauses_lib[selected_type]
     meta = get_type_meta(selected_type)
