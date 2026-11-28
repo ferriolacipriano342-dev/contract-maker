@@ -116,60 +116,62 @@ st.set_page_config(
     page_title="통합계약서 — 부동산·요양원 전문 작성기",
     page_icon="📑",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown(
     """
     <style>
       .block-container {
-        padding-top: 0.9rem;
-        padding-bottom: 2rem;
-        max-width: 1620px;
+        padding-top: 0.45rem !important;
+        padding-bottom: 1.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
       }
       .app-header-bar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 1rem;
+        gap: 0.75rem;
         flex-wrap: wrap;
-        padding: 1.05rem 1.35rem;
-        border-radius: 14px;
+        padding: 0.7rem 1.1rem;
+        border-radius: 12px;
         background: linear-gradient(135deg, #0b1c3d 0%, #163368 55%, #1d4ed8 100%);
-        border-bottom: 4px solid #f59e0b;
-        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+        border-bottom: 3.5px solid #f59e0b;
+        box-shadow: 0 5px 16px rgba(15, 23, 42, 0.16);
         color: #f8fafc;
-        margin-bottom: 0.95rem;
+        margin-bottom: 0.55rem;
       }
       .app-header-left {
         display: flex;
         align-items: center;
-        gap: 0.9rem;
+        gap: 0.75rem;
       }
       .app-header-icon {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
         background: rgba(255, 255, 255, 0.14);
         border: 1.5px solid rgba(251, 191, 36, 0.65);
-        font-size: 1.65rem;
+        font-size: 1.45rem;
         flex-shrink: 0;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
       }
       .app-header-title {
         margin: 0;
-        font-size: 1.95rem;
+        font-size: 1.65rem;
         font-weight: 900;
         letter-spacing: 0.08em;
         line-height: 1.15;
         color: #ffffff;
       }
       .app-header-sub {
-        margin: 0.25rem 0 0 0;
-        font-size: 0.88rem;
+        margin: 0.18rem 0 0 0;
+        font-size: 0.84rem;
         font-weight: 500;
         color: #dbeafe;
         letter-spacing: 0.01em;
@@ -238,19 +240,429 @@ st.markdown(
         margin-bottom: 0.4rem;
         background: #ffffff;
       }
+      .st-key-font_size_bar {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 0.25rem 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      .st-key-font_size_bar [data-testid="stRadio"],
+      .st-key-preview_toggle_box [data-testid="stRadio"] {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+      }
+      .st-key-font_size_bar [data-testid="stWidgetLabel"],
+      .st-key-preview_toggle_box [data-testid="stWidgetLabel"] {
+        margin-bottom: 0 !important;
+        font-weight: 700 !important;
+        color: #1e293b !important;
+      }
+      .st-key-preview_toggle_box {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 0.28rem 0.7rem;
+      }
+      /* Sticky 동작 보장을 위해 워크스페이스 래퍼 overflow: visible 명시 */
+      .st-key-workspace_split,
+      .st-key-workspace_split [data-testid="stVerticalBlock"],
+      .st-key-workspace_split [data-testid="stHorizontalBlock"]:has(.st-key-form_pane) {
+        overflow: visible !important;
+      }
+      /* 데스크탑: 좌측 입력 폼 콤팩트 정리 + 우측 계약서 미리보기 Sticky 고정 */
+      @media (min-width: 769px) {
+        .st-key-workspace_split [data-testid="stHorizontalBlock"]:has(.st-key-form_pane) {
+          align-items: flex-start !important;
+        }
+        .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {
+          position: sticky !important;
+          top: 1rem !important;
+          max-height: 92vh !important;
+          overflow-y: auto !important;
+          align-self: flex-start !important;
+          padding-right: 4px;
+        }
+        .st-key-form_pane [data-testid="stVerticalBlock"] {
+          gap: 0.42rem !important;
+        }
+        .st-key-form_pane [data-testid="stExpander"] summary {
+          padding: 0.45rem 0.7rem !important;
+        }
+        .st-key-form_pane [data-testid="stExpanderDetails"] {
+          padding: 0.55rem 0.65rem 0.65rem 0.65rem !important;
+        }
+        .st-key-form_pane .stTextInput input,
+        .st-key-form_pane .stNumberInput input,
+        .st-key-form_pane .stDateInput input {
+          padding-top: 0.28rem !important;
+          padding-bottom: 0.28rem !important;
+          min-height: 36px;
+        }
+        .st-key-form_pane [data-testid="stWidgetLabel"] {
+          margin-bottom: 0.12rem !important;
+        }
+        .st-key-form_pane hr {
+          margin: 0.45rem 0 !important;
+        }
+        .st-key-preview_iframe_box iframe {
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 10px !important;
+          background: #e9edf2 !important;
+          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
+        }
+      }
       @media (max-width: 768px) {
+        html, body, .stApp {
+          -webkit-text-size-adjust: 100%;
+          touch-action: manipulation;
+        }
         .block-container {
-          padding-left: 0.6rem;
-          padding-right: 0.6rem;
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+          padding-top: 0.4rem !important;
+        }
+        .app-header-bar {
+          padding: 0.75rem 0.9rem !important;
+        }
+        /* 모바일: 미리보기를 화면 상단에 고정(column-reverse + sticky top:0) */
+        .st-key-workspace_split [data-testid="stHorizontalBlock"]:has(.st-key-form_pane) {
+          display: flex !important;
+          flex-direction: column-reverse !important;
+          flex-wrap: nowrap !important;
+          gap: 0.75rem !important;
+        }
+        .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-form_pane),
+        .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {
+          width: 100% !important;
+          min-width: 100% !important;
+          flex: none !important;
+        }
+        .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 999 !important;
+          background: #ffffff !important;
+          border: 1px solid #cbd5e1 !important;
+          border-top: none !important;
+          border-radius: 0 0 12px 12px !important;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16) !important;
+          padding: 0.35rem 0.35rem 0.45rem 0.35rem !important;
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+        }
+        /* 모바일 상단 배치 순서: 1) 계약서 미리보기 → 2) 크게/작게/숨기기 바 → 3) 다운로드/검증 */
+        .st-key-preview_pane [data-testid="stVerticalBlock"] > div:has(.st-key-preview_iframe_box) {
+          order: 1 !important;
+        }
+        .st-key-preview_pane [data-testid="stVerticalBlock"] > div:has(.st-key-preview_toggle_box) {
+          order: 2 !important;
+        }
+        .st-key-preview_pane [data-testid="stVerticalBlock"] > div:has(.st-key-preview_actions_box) {
+          order: 3 !important;
+        }
+        .st-key-preview_pane [data-testid="stVerticalBlock"] {
+          gap: 0.35rem !important;
+        }
+        .st-key-preview_iframe_box iframe {
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 8px !important;
+          background: #e9edf2 !important;
         }
         .app-header-title {
-          font-size: 1.5rem;
+          font-size: 1.55rem !important;
+        }
+        .app-header-sub,
+        .app-header-pill {
+          font-size: 15px !important;
+        }
+        .stApp p,
+        .stApp li,
+        .stMarkdown,
+        .stMarkdown p,
+        .stMarkdown li,
+        [data-testid="stWidgetLabel"],
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] summary p,
+        [data-testid="stAlert"] p,
+        .stRadio label,
+        .stRadio label p,
+        .stCheckbox label,
+        .stCheckbox label p,
+        [data-baseweb="tab"],
+        [data-baseweb="tab"] p {
+          font-size: 17px !important;
+          line-height: 1.5 !important;
+        }
+        .stTextInput input,
+        .stNumberInput input,
+        .stTextArea textarea,
+        .stDateInput input,
+        [data-baseweb="input"] input,
+        [data-baseweb="textarea"] textarea,
+        [data-baseweb="select"],
+        [data-baseweb="select"] span,
+        [data-baseweb="select"] div,
+        [data-baseweb="select"] input,
+        .st-key-contract_type [data-baseweb="select"] span,
+        .st-key-contract_type [data-baseweb="select"] div[value],
+        .st-key-contract_type [data-baseweb="select"] input,
+        [data-baseweb="menu"] li,
+        [data-baseweb="popover"] li {
+          font-size: 18px !important;
+          line-height: 1.45 !important;
+        }
+        .stTextInput input,
+        .stNumberInput input,
+        .stDateInput input,
+        [data-baseweb="select"] > div {
+          min-height: 46px !important;
+        }
+        .stButton > button,
+        .stDownloadButton > button,
+        [data-testid="stFormSubmitButton"] > button,
+        .stButton > button p,
+        .stDownloadButton > button p,
+        [data-testid="stFormSubmitButton"] > button p {
+          font-size: 17.5px !important;
+          font-weight: 700 !important;
+        }
+        .stButton > button,
+        .stDownloadButton > button,
+        [data-testid="stFormSubmitButton"] > button {
+          min-height: 48px !important;
+          padding: 0.55rem 0.9rem !important;
+        }
+        .kr-amount-hint,
+        .doc-id-pill,
+        .type-active-badge,
+        .type-hint-badge,
+        [data-testid="stCaptionContainer"],
+        [data-testid="stCaptionContainer"] p,
+        [data-testid="stFileUploader"] small {
+          font-size: 15.5px !important;
+          line-height: 1.45 !important;
         }
       }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+
+FONT_SCALE_PRESETS: dict[str, dict[str, dict[str, str]]] = {
+    "보통": {
+        "desktop": {},
+        "mobile": {
+            "body": "17px",
+            "input": "18px",
+            "button": "17.5px",
+            "btn_height": "48px",
+            "input_height": "46px",
+            "caption": "15.5px",
+        },
+    },
+    "크게": {
+        "desktop": {
+            "body": "17px",
+            "input": "17.5px",
+            "button": "16.5px",
+            "btn_height": "44px",
+            "input_height": "44px",
+            "caption": "15px",
+        },
+        "mobile": {
+            "body": "19.5px",
+            "input": "20px",
+            "button": "19.5px",
+            "btn_height": "52px",
+            "input_height": "50px",
+            "caption": "17px",
+        },
+    },
+    "아주 크게": {
+        "desktop": {
+            "body": "20px",
+            "input": "20.5px",
+            "button": "19px",
+            "btn_height": "50px",
+            "input_height": "50px",
+            "caption": "17px",
+        },
+        "mobile": {
+            "body": "22px",
+            "input": "22.5px",
+            "button": "21.5px",
+            "btn_height": "56px",
+            "input_height": "54px",
+            "caption": "19px",
+        },
+    },
+}
+
+
+def _build_font_rules(cfg: dict[str, str]) -> str:
+    if not cfg:
+        return ""
+    return f"""
+        .stApp p,
+        .stApp li,
+        .stMarkdown,
+        .stMarkdown p,
+        .stMarkdown li,
+        [data-testid="stWidgetLabel"],
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] summary p,
+        [data-testid="stAlert"] p,
+        .stRadio label,
+        .stRadio label p,
+        .stCheckbox label,
+        .stCheckbox label p,
+        [data-baseweb="tab"],
+        [data-baseweb="tab"] p {{
+          font-size: {cfg['body']} !important;
+          line-height: 1.5 !important;
+        }}
+        .stTextInput input,
+        .stNumberInput input,
+        .stTextArea textarea,
+        .stDateInput input,
+        [data-baseweb="input"] input,
+        [data-baseweb="textarea"] textarea,
+        [data-baseweb="select"],
+        [data-baseweb="select"] span,
+        [data-baseweb="select"] div,
+        [data-baseweb="select"] input,
+        .st-key-contract_type [data-baseweb="select"] span,
+        .st-key-contract_type [data-baseweb="select"] div[value],
+        .st-key-contract_type [data-baseweb="select"] input,
+        [data-baseweb="menu"] li,
+        [data-baseweb="popover"] li {{
+          font-size: {cfg['input']} !important;
+          line-height: 1.45 !important;
+        }}
+        .stTextInput input,
+        .stNumberInput input,
+        .stDateInput input,
+        [data-baseweb="select"] > div {{
+          min-height: {cfg['input_height']} !important;
+        }}
+        .stButton > button,
+        .stDownloadButton > button,
+        [data-testid="stFormSubmitButton"] > button,
+        .stButton > button p,
+        .stDownloadButton > button p,
+        [data-testid="stFormSubmitButton"] > button p {{
+          font-size: {cfg['button']} !important;
+          font-weight: 700 !important;
+        }}
+        .stButton > button,
+        .stDownloadButton > button,
+        [data-testid="stFormSubmitButton"] > button {{
+          min-height: {cfg['btn_height']} !important;
+        }}
+        .kr-amount-hint,
+        .doc-id-pill,
+        .type-active-badge,
+        .type-hint-badge,
+        [data-testid="stCaptionContainer"],
+        [data-testid="stCaptionContainer"] p,
+        [data-testid="stFileUploader"] small {{
+          font-size: {cfg['caption']} !important;
+          line-height: 1.45 !important;
+        }}
+        .app-header-sub,
+        .app-header-pill {{
+          font-size: {cfg['caption']} !important;
+        }}
+    """
+
+
+def inject_font_scale_css(font_scale: str) -> None:
+    """사용자가 선택한 글자 크기('보통'/'크게'/'아주 크게')와 모바일 확대 스타일을 즉시 적용한다."""
+    preset = FONT_SCALE_PRESETS.get(font_scale, FONT_SCALE_PRESETS["보통"])
+    desktop_css = _build_font_rules(preset["desktop"])
+    mobile_css = _build_font_rules(preset["mobile"])
+    st.markdown(
+        f"""
+        <style>
+          {desktop_css}
+          @media (max-width: 768px) {{
+            {mobile_css}
+          }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def inject_preview_layout_css(preview_mode: str) -> None:
+    """미리보기 모드('크게'/'작게'/'숨기기')에 따라 모바일 상단 고정 높이 및 스타일을 동적 제어한다."""
+    if preview_mode == "크게":
+        mobile_pane_max_h = "66vh"
+        mobile_iframe_h = "56vh"
+        mobile_iframe_min_h = "320px"
+    elif preview_mode == "숨기기":
+        mobile_pane_max_h = "18vh"
+        mobile_iframe_h = "0px"
+        mobile_iframe_min_h = "0px"
+    else:  # "작게" (기본: 약 38vh~42vh 상단 고정 실시간 미리보기)
+        mobile_pane_max_h = "46vh"
+        mobile_iframe_h = "38vh"
+        mobile_iframe_min_h = "230px"
+
+    st.markdown(
+        f"""
+        <style>
+          @media (max-width: 768px) {{
+            .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {{
+              max-height: {mobile_pane_max_h} !important;
+            }}
+            .st-key-preview_iframe_box iframe {{
+              height: {mobile_iframe_h} !important;
+              min-height: {mobile_iframe_min_h} !important;
+              max-height: {mobile_iframe_h} !important;
+            }}
+          }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _enhance_live_preview_html(printable_html: str, preview_mode: str) -> str:
+    """실시간 A4 미리보기 iframe 전용 스케일·선명도 최적화 (다운로드/인쇄용 원본 HTML은 변경하지 않음)."""
+    max_scale = 1.45 if preview_mode == "크게" else 1.32
+    enhanced = printable_html.replace(
+        "var availableW = Math.max(260, document.documentElement.clientWidth - 20);",
+        "var availableW = Math.max(260, document.documentElement.clientWidth - 10);",
+    ).replace(
+        "var scale = Math.min(1, availableW / rawW);",
+        f"var scale = Math.min({max_scale}, availableW / rawW);",
+    )
+    extra_css = """
+    <style>
+      @media screen {
+        .preview-stage { padding: 8px 4px 18px 4px !important; }
+        .a4-page {
+          -webkit-font-smoothing: antialiased;
+          text-rendering: optimizeLegibility;
+        }
+        .toolbar {
+          padding: 5px 10px !important;
+          font-size: 11.5px !important;
+        }
+      }
+    </style>
+    </head>"""
+    if "</head>" in enhanced:
+        enhanced = enhanced.replace("</head>", extra_css, 1)
+    return enhanced
 
 
 @st.cache_data
@@ -626,6 +1038,10 @@ def ensure_state_initialized() -> None:
         st.session_state["contract_type"] = "housing_jeonse"
     if "color_mode" not in st.session_state:
         st.session_state["color_mode"] = "color"
+    if "ui_font_scale" not in st.session_state:
+        st.session_state["ui_font_scale"] = "보통"
+    if "preview_size_mode" not in st.session_state:
+        st.session_state["preview_size_mode"] = "작게"
     if "draft_mode" not in st.session_state:
         st.session_state["draft_mode"] = False
     if "custom_clauses_by_type" not in st.session_state:
@@ -1450,6 +1866,16 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
+    # ==================== 화면 글자 크기 조절 바 (모바일·PC 공용) ====================
+    with st.container(key="font_size_bar"):
+        ui_font_scale = st.radio(
+            "🔤 글자 크기",
+            options=["보통", "크게", "아주 크게"],
+            horizontal=True,
+            key="ui_font_scale",
+        )
+    inject_font_scale_css(ui_font_scale)
+
     # ==================== 상단 제어 바 (1행: 컬러 계약유형 카드 · 색상모드 · 초안 · 예시 · 초기화 · 잠금) ====================
     ctrl1, ctrl2, ctrl3, ctrl4, ctrl5, ctrl6 = st.columns([2.35, 1.55, 1.05, 0.85, 0.85, 0.6])
     with ctrl1:
@@ -1532,10 +1958,12 @@ def main() -> None:
 
     live_form: dict[str, Any] = dict(st.session_state["_form_data"])
 
-    # ==================== 좌측 입력 폼 / 우측 실시간 A4 미리보기 ====================
-    col_form, col_preview = st.columns([1.0, 1.15], gap="large")
+    # ==================== 좌측 콤팩트 입력 폼(3.5) / 우측 대형 실시간 A4 미리보기(6.5) ====================
+    workspace_box = st.container(key="workspace_split")
+    with workspace_box:
+        col_form, col_preview = st.columns([3.5, 6.5], gap="medium")
 
-    with col_form:
+    with col_form, st.container(key="form_pane"):
         # 0. 최상단: 증빙서류 촬영·갤러리 업로드 보관 및 AI 자동 채우기
         render_attachments_and_ai_panel(
             contract_id=current_cid,
@@ -1567,7 +1995,7 @@ def main() -> None:
                     key=_wkey("address"),
                     placeholder="예: 경기도 양평군 양서면 목왕리 123-4",
                 )
-                ld1, ld2, ld3 = st.columns([1.0, 1.3, 1.3])
+                ld1, ld2 = st.columns(2)
                 with ld1:
                     live_form["land_category"] = st.text_input(
                         "지목", key=_wkey("land_category"), placeholder="전, 답, 대, 임야 등"
@@ -1582,26 +2010,26 @@ def main() -> None:
                             f'<div class="kr-amount-hint">약 {py_txt} (3.3058㎡ 기준 자동 환산)</div>',
                             unsafe_allow_html=True,
                         )
+
+                ld3, ld4 = st.columns(2)
                 with ld3:
                     live_form["lease_part"] = st.text_input(
                         "매매 대상 (전부 / 지분율)",
                         key=_wkey("lease_part"),
                         placeholder="예: 토지 전부 (또는 지분 1/2)",
                     )
-
-                ld4, ld5 = st.columns(2)
                 with ld4:
                     live_form["land_zoning"] = st.text_input(
                         "용도지역·지구",
                         key=_wkey("land_zoning"),
-                        placeholder="예: 계획관리지역, 농림지역, 개발제한구역",
+                        placeholder="예: 계획관리지역, 농림지역",
                     )
-                with ld5:
-                    live_form["land_status"] = st.text_input(
-                        "토지 현황",
-                        key=_wkey("land_status"),
-                        placeholder="예: 경작 중(전), 나대지, 임야 등",
-                    )
+
+                live_form["land_status"] = st.text_input(
+                    "토지 현황",
+                    key=_wkey("land_status"),
+                    placeholder="예: 경작 중(전), 나대지, 임야 등",
+                )
 
                 live_form["extra_parcels"] = st.text_area(
                     "다필지(추가 필지) 목록 메모 (선택)",
@@ -1660,7 +2088,7 @@ def main() -> None:
                 live_form["address"] = st.text_input(
                     "점포 소재지", key=_wkey("address"), placeholder="예: 경기도 남양주시 ..."
                 )
-                pr3, pr4 = st.columns([1.8, 1.0])
+                pr3, pr4 = st.columns([1.6, 1.0])
                 with pr3:
                     live_form["lease_part"] = st.text_input(
                         "점포 층·호수", key=_wkey("lease_part"), placeholder="예: 1층 105호 점포 전부"
@@ -1679,7 +2107,7 @@ def main() -> None:
                 live_form["address"] = st.text_input(
                     "상가 소재지", key=_wkey("address"), placeholder="예: 경기도 구리시 ..."
                 )
-                c1, c2, c3 = st.columns([1.2, 1.3, 1.0])
+                c1, c2 = st.columns(2)
                 with c1:
                     live_form["building_structure"] = st.text_input(
                         "건물 구조", key=_wkey("building_structure"), placeholder="철근콘크리트"
@@ -1688,22 +2116,24 @@ def main() -> None:
                     live_form["building_use"] = st.text_input(
                         "건축물 용도", key=_wkey("building_use"), placeholder="제1종근린생활시설"
                     )
+                c3, c4 = st.columns(2)
                 with c3:
                     live_form["building_area"] = st.text_input(
                         "건물 연면적 (㎡)", key=_wkey("building_area"), placeholder="예: 1250.40"
                     )
-                c4, c5 = st.columns([2.0, 1.0])
                 with c4:
-                    live_form["lease_part"] = st.text_input(
-                        "임대할 부분 (층·호수)", key=_wkey("lease_part"), placeholder="예: 1층 104호 전부"
-                    )
-                with c5:
                     live_form["lease_area"] = st.text_input(
                         "계약 면적 (㎡)", key=_wkey("lease_area"), placeholder="예: 56.20"
                     )
-                live_form["business_type"] = st.text_input(
-                    "임차인 영업 업종/용도", key=_wkey("business_type"), placeholder="예: 커피전문점(휴게음식점)"
-                )
+                c5, c6 = st.columns(2)
+                with c5:
+                    live_form["lease_part"] = st.text_input(
+                        "임대할 부분 (층·호수)", key=_wkey("lease_part"), placeholder="예: 1층 104호 전부"
+                    )
+                with c6:
+                    live_form["business_type"] = st.text_input(
+                        "임차인 영업 업종/용도", key=_wkey("business_type"), placeholder="예: 커피전문점(휴게음식점)"
+                    )
 
             else:
                 live_form["address"] = st.text_input(
@@ -1711,7 +2141,7 @@ def main() -> None:
                     key=_wkey("address"),
                     placeholder="예: 경기도 남양주시 오남읍 ...",
                 )
-                r1c1, r1c2, r1c3 = st.columns([1, 1.5, 1.2])
+                r1c1, r1c2 = st.columns(2)
                 with r1c1:
                     live_form["land_category"] = st.text_input(
                         "지목", key=_wkey("land_category"), placeholder="예: 대"
@@ -1720,33 +2150,35 @@ def main() -> None:
                     live_form["land_share_ratio"] = st.text_input(
                         "대지권비율", key=_wkey("land_share_ratio"), placeholder="예: 33101/55.3748"
                     )
-                with r1c3:
+
+                r2c1, r2c2 = st.columns(2)
+                with r2c1:
                     live_form["land_area"] = st.text_input(
                         "토지면적 (㎡)", key=_wkey("land_area"), placeholder="예: 32.01"
                     )
-
-                r2c1, r2c2, r2c3 = st.columns([1.3, 1.2, 1.2])
-                with r2c1:
-                    live_form["building_structure"] = st.text_input(
-                        "건물 구조", key=_wkey("building_structure"), placeholder="예: 철근콘크리트"
-                    )
                 with r2c2:
-                    live_form["building_use"] = st.text_input(
-                        "건물 용도", key=_wkey("building_use"), placeholder="예: 공동주택"
-                    )
-                with r2c3:
                     live_form["building_area"] = st.text_input(
                         "건물 면적 (㎡)", key=_wkey("building_area"), placeholder="예: 84.9580"
                     )
 
+                r3c1, r3c2 = st.columns(2)
+                with r3c1:
+                    live_form["building_structure"] = st.text_input(
+                        "건물 구조", key=_wkey("building_structure"), placeholder="예: 철근콘크리트"
+                    )
+                with r3c2:
+                    live_form["building_use"] = st.text_input(
+                        "건물 용도", key=_wkey("building_use"), placeholder="예: 공동주택"
+                    )
+
                 part_lbl = "매매대상 부분" if selected_type == "real_estate_sale" else "임대할 부분"
                 area_lbl = "매매 면적 (㎡)" if selected_type == "real_estate_sale" else "임대 면적 (㎡)"
-                r3c1, r3c2 = st.columns([2.2, 1.2])
-                with r3c1:
+                r4c1, r4c2 = st.columns([1.4, 1.0])
+                with r4c1:
                     live_form["lease_part"] = st.text_input(
                         part_lbl, key=_wkey("lease_part"), placeholder="예: 108동 401호 전부"
                     )
-                with r3c2:
+                with r4c2:
                     live_form["lease_area"] = st.text_input(
                         area_lbl, key=_wkey("lease_area"), placeholder="예: 84.9580"
                     )
@@ -1824,7 +2256,7 @@ def main() -> None:
                         )
 
             if selected_type == "nursing_home_transfer":
-                e1, e2, e3 = st.columns([1.2, 0.8, 1.5])
+                e1, e2 = st.columns([1.3, 1.0])
                 with e1:
                     escrow_val = st.number_input(
                         "유보금(에스크로)(원)", min_value=0, step=1_000_000, key=_wkey("escrow_amount")
@@ -1839,12 +2271,11 @@ def main() -> None:
                     live_form["escrow_period"] = st.text_input(
                         "유보기간", key=_wkey("escrow_period"), placeholder="예: 6개월"
                     )
-                with e3:
-                    live_form["escrow_condition"] = st.text_input(
-                        "유보 정산 조건",
-                        key=_wkey("escrow_condition"),
-                        placeholder="현지조사·부당청구 환수·행정처분 대비",
-                    )
+                live_form["escrow_condition"] = st.text_input(
+                    "유보 정산 조건",
+                    key=_wkey("escrow_condition"),
+                    placeholder="현지조사·부당청구 환수·행정처분 대비",
+                )
 
             a3, a4 = st.columns(2)
             with a3:
@@ -1888,7 +2319,7 @@ def main() -> None:
 
             if selected_type in ("housing_wolse", "commercial_lease"):
                 st.markdown("---")
-                m1, m2, m3 = st.columns([1.3, 0.8, 0.9])
+                m1, m2 = st.columns(2)
                 with m1:
                     rent_val = st.number_input(
                         "월 차임(원)", min_value=0, step=50_000, key=_wkey("monthly_rent")
@@ -1903,73 +2334,72 @@ def main() -> None:
                     live_form["monthly_rent_day"] = st.text_input(
                         "매월 지급일", key=_wkey("monthly_rent_day"), placeholder="예: 25"
                     )
+
+                m3, m4 = st.columns(2)
                 with m3:
                     live_form["rent_pay_type"] = st.selectbox(
                         "선불/후불", options=["선불", "후불"], key=_wkey("rent_pay_type")
                     )
-
-                mf_cols = st.columns([1.2, 1.2, 1.4] if selected_type == "commercial_lease" else [1.2, 2.0])
-                with mf_cols[0]:
+                with m4:
                     live_form["management_fee"] = st.number_input(
                         "월 관리비(원)", min_value=0, step=10_000, key=_wkey("management_fee")
                     )
+
                 if selected_type == "commercial_lease":
-                    with mf_cols[1]:
+                    mf1, mf2 = st.columns(2)
+                    with mf1:
                         live_form["vat_type"] = st.selectbox(
                             "부가가치세 구분",
                             options=["부가가치세 별도", "부가가치세 포함", "면세/해당없음"],
                             key=_wkey("vat_type"),
                         )
-                    with mf_cols[2]:
+                    with mf2:
                         live_form["management_fee_note"] = st.text_input(
                             "관리비 포함/별도 내역",
                             key=_wkey("management_fee_note"),
                             placeholder="예: 공과금 실비 정산, 부가세 별도",
                         )
                 else:
-                    with mf_cols[1]:
-                        live_form["management_fee_note"] = st.text_input(
-                            "관리비 포함/별도 내역",
-                            key=_wkey("management_fee_note"),
-                            placeholder="예: 공용전기·청소 포함, 수도·가스 별도",
-                        )
+                    live_form["management_fee_note"] = st.text_input(
+                        "관리비 포함/별도 내역",
+                        key=_wkey("management_fee_note"),
+                        placeholder="예: 공용전기·청소 포함, 수도·가스 별도",
+                    )
 
             st.markdown("---")
-            d1, d2, d3 = st.columns(3)
+            d1, d2 = st.columns(2)
             with d1:
                 live_form["down_receipt_person"] = st.text_input(
                     "계약금 영수자", key=_wkey("down_receipt_person"), placeholder=f"{p1_role} 성명"
                 )
             with d2:
+                live_form["balance_date"] = st.date_input("잔금 지급일", key=_wkey("balance_date"))
+
+            d3, d4 = st.columns(2)
+            with d3:
                 use_interim_dt = st.checkbox("중도금 지급일 기입", key=_wkey("use_interim_date"))
                 live_form["use_interim_date"] = use_interim_dt
                 if use_interim_dt:
                     live_form["interim_date"] = st.date_input("중도금 지급일", key=_wkey("interim_date"))
-            with d3:
-                live_form["balance_date"] = st.date_input("잔금 지급일", key=_wkey("balance_date"))
+            with d4:
+                live_form["contract_date"] = st.date_input("계약 작성일", key=_wkey("contract_date"))
 
             if selected_type in ("housing_jeonse", "housing_wolse", "commercial_lease"):
-                p1, p2, p3 = st.columns(3)
+                p1, p2 = st.columns(2)
                 with p1:
                     live_form["handover_date"] = st.date_input("인도일 (존속 시작)", key=_wkey("handover_date"))
                 with p2:
                     live_form["lease_end_date"] = st.date_input("임대차 만료일", key=_wkey("lease_end_date"))
-                with p3:
-                    live_form["contract_date"] = st.date_input("계약 작성일", key=_wkey("contract_date"))
                 dur_str = calculate_lease_duration(live_form["handover_date"], live_form["lease_end_date"])
                 if dur_str:
                     st.caption(f"⏱️ 자동 계산된 존속기간: **{dur_str}**")
             else:
-                p1, p2 = st.columns(2)
                 handover_lbl = (
                     "양도기준일 (인수인계일)"
                     if selected_type == "nursing_home_transfer"
                     else "인도일 (명도·이전일)"
                 )
-                with p1:
-                    live_form["handover_date"] = st.date_input(handover_lbl, key=_wkey("handover_date"))
-                with p2:
-                    live_form["contract_date"] = st.date_input("계약 작성일", key=_wkey("contract_date"))
+                live_form["handover_date"] = st.date_input(handover_lbl, key=_wkey("handover_date"))
 
         # ③ 정밀 특약사항 선택기
         with st.expander("③ 정밀 특약사항 선택기 (clauses.json 연동)", expanded=True):
@@ -1982,36 +2412,38 @@ def main() -> None:
         ):
             st.markdown(f"**{p1_role}**")
             live_form["lessor_address"] = st.text_input(f"{p1_role} 주소", key=_wkey("lessor_address"))
-            l1, l2, l3, l4 = st.columns([1.4, 1.2, 1.1, 1.0])
+            l1, l2 = st.columns(2)
             with l1:
+                live_form["lessor_name"] = st.text_input(f"{p1_role} 성명", key=_wkey("lessor_name"))
+            with l2:
                 live_form["lessor_rrn"] = st.text_input(
                     f"{p1_role} 주민(사업자)번호", key=_wkey("lessor_rrn"), placeholder="000000-0000000"
                 )
-            with l2:
+            l3, l4 = st.columns(2)
+            with l3:
                 live_form["lessor_phone1"] = st.text_input(
                     f"{p1_role} 전화1", key=_wkey("lessor_phone1"), placeholder="010-0000-0000"
                 )
-            with l3:
-                live_form["lessor_phone2"] = st.text_input(f"{p1_role} 전화2", key=_wkey("lessor_phone2"))
             with l4:
-                live_form["lessor_name"] = st.text_input(f"{p1_role} 성명", key=_wkey("lessor_name"))
+                live_form["lessor_phone2"] = st.text_input(f"{p1_role} 전화2", key=_wkey("lessor_phone2"))
 
             st.markdown("---")
             st.markdown(f"**{p2_role}**")
             live_form["lessee_address"] = st.text_input(f"{p2_role} 주소", key=_wkey("lessee_address"))
-            t1, t2, t3, t4 = st.columns([1.4, 1.2, 1.1, 1.0])
+            t1, t2 = st.columns(2)
             with t1:
+                live_form["lessee_name"] = st.text_input(f"{p2_role} 성명", key=_wkey("lessee_name"))
+            with t2:
                 live_form["lessee_rrn"] = st.text_input(
                     f"{p2_role} 주민(사업자)번호", key=_wkey("lessee_rrn"), placeholder="000000-0000000"
                 )
-            with t2:
+            t3, t4 = st.columns(2)
+            with t3:
                 live_form["lessee_phone1"] = st.text_input(
                     f"{p2_role} 전화1", key=_wkey("lessee_phone1"), placeholder="010-0000-0000"
                 )
-            with t3:
-                live_form["lessee_phone2"] = st.text_input(f"{p2_role} 전화2", key=_wkey("lessee_phone2"))
             with t4:
-                live_form["lessee_name"] = st.text_input(f"{p2_role} 성명", key=_wkey("lessee_name"))
+                live_form["lessee_phone2"] = st.text_input(f"{p2_role} 전화2", key=_wkey("lessee_phone2"))
 
         # ⑤ 개업공인중개사 정보
         with st.expander("⑤ 개업공인중개사 정보 (공동중개 지원)", expanded=False):
@@ -2081,141 +2513,158 @@ def main() -> None:
     is_valid = context["is_valid"]
 
     # ==================== 우측 실시간 A4 미리보기 및 출력 제어 ====================
-    with col_preview:
-        if is_valid:
-            st.success(f"✅ {context['validation_msg']}")
-        else:
-            st.error(f"🚨 {context['validation_msg']} — 금액을 입력·일치시켜야 다운로드가 활성화됩니다.")
-
-        est_lines = context["estimated_clause_lines"]
-        mode_badge = "🎨 컬러 인쇄용" if color_mode == "color" else "🖨️ 흑백 인쇄용"
-        if context["is_annex"]:
-            st.info(
-                f"{mode_badge} · 📄 특약 예상 분량 **{est_lines}줄** (한도 {MAX_INLINE_CLAUSE_LINES}줄 초과) → "
-                "본문 **`특약사항 별지 참조`** 및 **2페이지 [별지] 특약사항** 자동 생성됨"
-            )
-        else:
-            st.caption(
-                f"{mode_badge} · 📏 특약 본문 분량: **{est_lines} / {MAX_INLINE_CLAUSE_LINES}줄** (A4 1장 내 출력)"
-            )
-
-        date_tag = str(live_form.get("contract_date", date.today())).replace("-", "")
-        color_tag = "_컬러" if color_mode == "color" else "_흑백"
-        draft_tag = "_초안" if draft_mode else ""
-        base_filename = f"{type_cfg['label'].replace(' ', '_')}_계약서_{date_tag}{color_tag}{draft_tag}"
-
-        printable_html = render_html(context, include_print_toolbar=True)
-        has_user_hwpx = has_custom_hwpx_template(selected_type)
-
-        dl_cols = st.columns(3 if has_user_hwpx else 2)
-
-        with dl_cols[0]:
+    with col_preview, st.container(key="preview_pane"):
+        with st.container(key="preview_actions_box"):
             if is_valid:
-                pdf_bytes, pdf_msg = generate_pdf(context)
-                if pdf_bytes is not None:
-                    st.download_button(
-                        "📄 PDF 다운로드 (A4)",
-                        data=pdf_bytes,
-                        file_name=f"{base_filename}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True,
-                        type="primary",
-                    )
-                else:
-                    st.download_button(
-                        "🖨️ PDF 인쇄용 HTML (A4 100%)",
-                        data=printable_html.encode("utf-8"),
-                        file_name=f"{base_filename}_인쇄용.html",
-                        mime="text/html",
-                        use_container_width=True,
-                        type="primary",
-                        help=pdf_msg,
-                    )
+                st.success(f"✅ {context['validation_msg']}")
             else:
-                st.button("🖨️ PDF 인쇄용 HTML (A4 100%)", disabled=True, use_container_width=True)
+                st.error(f"🚨 {context['validation_msg']} — 금액을 입력·일치시켜야 다운로드가 활성화됩니다.")
 
-        with dl_cols[1]:
-            if is_valid:
-                docx_bytes = generate_docx(context)
-                st.download_button(
-                    "📝 Word (.docx · 한글에서도 열림)",
-                    data=docx_bytes,
-                    file_name=f"{base_filename}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True,
+            est_lines = context["estimated_clause_lines"]
+            mode_badge = "🎨 컬러 인쇄용" if color_mode == "color" else "🖨️ 흑백 인쇄용"
+            if context["is_annex"]:
+                st.info(
+                    f"{mode_badge} · 📄 특약 예상 분량 **{est_lines}줄** (한도 {MAX_INLINE_CLAUSE_LINES}줄 초과) → "
+                    "본문 **`특약사항 별지 참조`** 및 **2페이지 [별지] 특약사항** 자동 생성됨"
                 )
             else:
-                st.button("📝 Word (.docx · 한글에서도 열림)", disabled=True, use_container_width=True)
+                st.caption(
+                    f"{mode_badge} · 📏 특약 본문 분량: **{est_lines} / {MAX_INLINE_CLAUSE_LINES}줄** (A4 1장 내 출력)"
+                )
 
-        if has_user_hwpx:
-            with dl_cols[2]:
+            date_tag = str(live_form.get("contract_date", date.today())).replace("-", "")
+            color_tag = "_컬러" if color_mode == "color" else "_흑백"
+            draft_tag = "_초안" if draft_mode else ""
+            base_filename = f"{type_cfg['label'].replace(' ', '_')}_계약서_{date_tag}{color_tag}{draft_tag}"
+
+            printable_html = render_html(context, include_print_toolbar=True)
+            has_user_hwpx = has_custom_hwpx_template(selected_type)
+
+            dl_cols = st.columns(3 if has_user_hwpx else 2)
+
+            with dl_cols[0]:
                 if is_valid:
-                    hwpx_bytes = generate_hwpx(context)
+                    pdf_bytes, pdf_msg = generate_pdf(context)
+                    if pdf_bytes is not None:
+                        st.download_button(
+                            "📄 PDF 다운로드 (A4)",
+                            data=pdf_bytes,
+                            file_name=f"{base_filename}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                            type="primary",
+                        )
+                    else:
+                        st.download_button(
+                            "🖨️ PDF 인쇄용 HTML (A4 100%)",
+                            data=printable_html.encode("utf-8"),
+                            file_name=f"{base_filename}_인쇄용.html",
+                            mime="text/html",
+                            use_container_width=True,
+                            type="primary",
+                            help=pdf_msg,
+                        )
+                else:
+                    st.button("🖨️ PDF 인쇄용 HTML (A4 100%)", disabled=True, use_container_width=True)
+
+            with dl_cols[1]:
+                if is_valid:
+                    docx_bytes = generate_docx(context)
                     st.download_button(
-                        "📘 사용자 한글 (.hwpx)",
-                        data=hwpx_bytes,
-                        file_name=f"{base_filename}.hwpx",
-                        mime="application/hwp+zip",
+                        "📝 Word (.docx · 한글에서도 열림)",
+                        data=docx_bytes,
+                        file_name=f"{base_filename}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         use_container_width=True,
                     )
                 else:
-                    st.button("📘 사용자 한글 (.hwpx)", disabled=True, use_container_width=True)
+                    st.button("📝 Word (.docx · 한글에서도 열림)", disabled=True, use_container_width=True)
 
-        hwpx_panel_title = (
-            f"📘 사용자 한글(.hwpx) 템플릿 등록됨 — {type_cfg['label']} 전용 .hwpx 활성화"
-            if has_user_hwpx
-            else "📘 사용자 한글(.hwpx) 템플릿 업로드 (선택 · 미등록 시 Word .docx 사용 권장)"
-        )
-        with st.expander(hwpx_panel_title, expanded=False):
-            st.caption(
-                "💡 **실무 팁**: 위 **Word(.docx)** 파일은 MS Word뿐 아니라 **아래아한글에서도 바로 열리고 편집**되며, "
-                "선택한 컬러/흑백 모드가 그대로 적용됩니다. 사무소 전용 `.hwpx` 서식이 있을 경우 여기에 업로드해 사용하세요."
-            )
-            uploaded_hwpx = st.file_uploader(
-                f"{type_cfg['label']} 전용 .hwpx 파일 선택",
-                type=["hwpx"],
-                key=f"hwpx_uploader_{selected_type}",
-            )
-            u_col1, u_col2 = st.columns(2)
-            with u_col1:
-                if st.button(
-                    "📤 사용자 .hwpx 등록",
-                    disabled=uploaded_hwpx is None,
-                    use_container_width=True,
-                    key=f"hwpx_save_btn_{selected_type}",
-                ):
-                    if uploaded_hwpx is not None:
-                        ok_up, up_msg, found_tags = save_custom_hwpx_template(
-                            selected_type, uploaded_hwpx.getvalue()
+            if has_user_hwpx:
+                with dl_cols[2]:
+                    if is_valid:
+                        hwpx_bytes = generate_hwpx(context)
+                        st.download_button(
+                            "📘 사용자 한글 (.hwpx)",
+                            data=hwpx_bytes,
+                            file_name=f"{base_filename}.hwpx",
+                            mime="application/hwp+zip",
+                            use_container_width=True,
                         )
-                        if ok_up:
-                            st.success(up_msg)
-                            if found_tags:
-                                st.info("인식된 치환 태그: " + ", ".join(f"`{{{{{t}}}}}`" for t in found_tags[:20]))
-                            st.rerun()
-                        else:
-                            st.error(up_msg)
-            with u_col2:
-                if st.button(
-                    "🗑️ 등록된 .hwpx 해제",
-                    disabled=not has_user_hwpx,
-                    use_container_width=True,
-                    key=f"hwpx_reset_btn_{selected_type}",
-                ):
-                    reset_custom_hwpx_template(selected_type)
-                    st.success("사용자 .hwpx 템플릿이 해제되었습니다.")
-                    st.rerun()
+                    else:
+                        st.button("📘 사용자 한글 (.hwpx)", disabled=True, use_container_width=True)
 
-            if st.checkbox("지원 치환 태그 목록 보기", key=f"show_tags_{selected_type}"):
-                tag_md = "\n".join(f"- `{tag}` : {desc}" for tag, desc in HWPX_PLACEHOLDER_GUIDE)
-                st.markdown(tag_md)
+            hwpx_panel_title = (
+                f"📘 사용자 한글(.hwpx) 템플릿 등록됨 — {type_cfg['label']} 전용 .hwpx 활성화"
+                if has_user_hwpx
+                else "📘 사용자 한글(.hwpx) 템플릿 업로드 (선택 · 미등록 시 Word .docx 사용 권장)"
+            )
+            with st.expander(hwpx_panel_title, expanded=False):
+                st.caption(
+                    "💡 **실무 팁**: 위 **Word(.docx)** 파일은 MS Word뿐 아니라 **아래아한글에서도 바로 열리고 편집**되며, "
+                    "선택한 컬러/흑백 모드가 그대로 적용됩니다. 사무소 전용 `.hwpx` 서식이 있을 경우 여기에 업로드해 사용하세요."
+                )
+                uploaded_hwpx = st.file_uploader(
+                    f"{type_cfg['label']} 전용 .hwpx 파일 선택",
+                    type=["hwpx"],
+                    key=f"hwpx_uploader_{selected_type}",
+                )
+                u_col1, u_col2 = st.columns(2)
+                with u_col1:
+                    if st.button(
+                        "📤 사용자 .hwpx 등록",
+                        disabled=uploaded_hwpx is None,
+                        use_container_width=True,
+                        key=f"hwpx_save_btn_{selected_type}",
+                    ):
+                        if uploaded_hwpx is not None:
+                            ok_up, up_msg, found_tags = save_custom_hwpx_template(
+                                selected_type, uploaded_hwpx.getvalue()
+                            )
+                            if ok_up:
+                                st.success(up_msg)
+                                if found_tags:
+                                    st.info("인식된 치환 태그: " + ", ".join(f"`{{{{{t}}}}}`" for t in found_tags[:20]))
+                                st.rerun()
+                            else:
+                                st.error(up_msg)
+                with u_col2:
+                    if st.button(
+                        "🗑️ 등록된 .hwpx 해제",
+                        disabled=not has_user_hwpx,
+                        use_container_width=True,
+                        key=f"hwpx_reset_btn_{selected_type}",
+                    ):
+                        reset_custom_hwpx_template(selected_type)
+                        st.success("사용자 .hwpx 템플릿이 해제되었습니다.")
+                        st.rerun()
 
-        # 실시간 A4 미리보기 iframe
-        preview_height = 1850 if context["is_annex"] else 1040
-        if hasattr(st, "iframe"):
-            st.iframe(printable_html, height=preview_height)
-        else:
-            components.html(printable_html, height=preview_height, scrolling=True)
+                if st.checkbox("지원 치환 태그 목록 보기", key=f"show_tags_{selected_type}"):
+                    tag_md = "\n".join(f"- `{tag}` : {desc}" for tag, desc in HWPX_PLACEHOLDER_GUIDE)
+                    st.markdown(tag_md)
+
+        # 미리보기 크기 조절 바 (모바일에서는 상단 미리보기 바로 아래에 배치)
+        with st.container(key="preview_toggle_box"):
+            preview_mode = st.radio(
+                "📄 미리보기",
+                options=["크게", "작게", "숨기기"],
+                horizontal=True,
+                key="preview_size_mode",
+            )
+        inject_preview_layout_css(preview_mode)
+
+        # 실시간 A4 미리보기 iframe (숨기기 선택 시 생략)
+        if preview_mode != "숨기기":
+            with st.container(key="preview_iframe_box"):
+                live_preview_html = _enhance_live_preview_html(printable_html, preview_mode)
+                if context["is_annex"]:
+                    preview_height = 2650 if preview_mode == "크게" else 2300
+                else:
+                    preview_height = 1480 if preview_mode == "크게" else 1320
+                if hasattr(st, "iframe"):
+                    st.iframe(live_preview_html, height=preview_height)
+                else:
+                    components.html(live_preview_html, height=preview_height, scrolling=True)
 
 
 if __name__ == "__main__":
