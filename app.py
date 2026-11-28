@@ -1919,7 +1919,7 @@ def render_attachments_and_ai_panel(
                     documents=docs_for_ai,
                     api_key=api_key,
                     id_target_role=id_role,
-                    timeout_seconds=30,
+                    timeout_seconds=60,
                     on_progress=_on_ai_step,
                 )
                 if ai_res.get("ok"):
