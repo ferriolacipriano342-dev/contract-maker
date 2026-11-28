@@ -260,6 +260,124 @@ st.markdown(
         font-weight: 700 !important;
         color: #1e293b !important;
       }
+      /* 연속 카메라 촬영 스튜디오: 세로로 시원하게 확대 + 군더더기 제거 + 강조 저장 버튼 */
+      .cam-count-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 0.65rem 1rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+        color: #ffffff;
+        font-size: 1.08rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.55rem;
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.14);
+      }
+      .cam-count-pill {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: #f59e0b;
+        color: #0f172a;
+        font-weight: 900;
+      }
+      .st-key-camera_studio [data-testid="stCameraInput"] {
+        width: 100% !important;
+      }
+      .st-key-camera_studio [data-testid="stCameraInput"] > div {
+        width: 100% !important;
+      }
+      .st-key-camera_studio [data-testid="stCameraInput"] video,
+      .st-key-camera_studio [data-testid="stCameraInput"] img {
+        width: 100% !important;
+        min-height: 440px !important;
+        height: 56vh !important;
+        max-height: 68vh !important;
+        object-fit: cover !important;
+        border-radius: 12px !important;
+        background: #0f172a !important;
+      }
+      .st-key-camera_studio [data-testid="stCameraInputButton"] {
+        width: 100% !important;
+        min-height: 50px !important;
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        border-radius: 10px !important;
+        margin-top: 0.35rem !important;
+      }
+      .st-key-cam_add_btn_wrap .stButton > button {
+        min-height: 54px !important;
+        border-radius: 12px !important;
+        border: 2px solid #2563eb !important;
+        background: #eff6ff !important;
+        color: #1d4ed8 !important;
+        font-weight: 800 !important;
+      }
+      .st-key-cam_add_btn_wrap .stButton > button p {
+        font-size: 16.5px !important;
+        font-weight: 800 !important;
+        color: #1d4ed8 !important;
+      }
+      .st-key-cam_add_btn_wrap .stButton > button:disabled {
+        opacity: 0.48 !important;
+      }
+      .st-key-cam_finish_btn_wrap .stButton > button {
+        min-height: 56px !important;
+        border-radius: 12px !important;
+        border: none !important;
+        background: #16a34a !important;
+        color: #ffffff !important;
+        font-weight: 900 !important;
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3) !important;
+      }
+      .st-key-cam_finish_btn_wrap .stButton > button:hover {
+        background: #15803d !important;
+      }
+      .st-key-cam_finish_btn_wrap .stButton > button p {
+        font-size: 17px !important;
+        font-weight: 900 !important;
+        color: #ffffff !important;
+      }
+      .st-key-cam_finish_btn_wrap .stButton > button:disabled {
+        background: #94a3b8 !important;
+        box-shadow: none !important;
+      }
+      .st-key-cam_thumb_strip [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.35rem !important;
+      }
+      .st-key-cam_thumb_strip [data-testid="stColumn"] {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        width: auto !important;
+      }
+      .st-key-cam_thumb_strip img {
+        border-radius: 8px !important;
+        border: 1.5px solid #cbd5e1 !important;
+        height: 72px !important;
+        object-fit: cover !important;
+        width: 100% !important;
+      }
+      .st-key-cam_thumb_strip .stButton > button {
+        min-height: 28px !important;
+        height: 28px !important;
+        padding: 0 4px !important;
+        border-radius: 6px !important;
+        background: #fee2e2 !important;
+        border: 1px solid #fca5a5 !important;
+        color: #b91c1c !important;
+      }
+      .st-key-cam_thumb_strip .stButton > button p {
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        color: #b91c1c !important;
+      }
       /* Sticky 동작 보장을 위해 워크스페이스 래퍼 overflow: visible 명시 */
       .st-key-workspace_split,
       .st-key-workspace_split [data-testid="stVerticalBlock"],
@@ -1378,6 +1496,14 @@ def ensure_state_initialized() -> None:
         st.session_state["_expand_party_section"] = False
     if "ai_last_result" not in st.session_state:
         st.session_state["ai_last_result"] = None
+    if "cam_step" not in st.session_state:
+        st.session_state["cam_step"] = 0
+    if "captured_photos" not in st.session_state:
+        st.session_state["captured_photos"] = []
+    if "camera_mode_open" not in st.session_state:
+        st.session_state["camera_mode_open"] = True
+    if "_cam_just_saved_msg" not in st.session_state:
+        st.session_state["_cam_just_saved_msg"] = ""
 
 
 def _consume_pending_autofill() -> None:
@@ -1467,6 +1593,10 @@ def start_new_contract(keep_type: bool = True) -> None:
     st.session_state["_clause_overrides"] = {}
     st.session_state["ai_last_result"] = None
     st.session_state["_expand_party_section"] = False
+    st.session_state["captured_photos"] = []
+    st.session_state["cam_step"] = int(st.session_state.get("cam_step", 0)) + 1
+    st.session_state["camera_mode_open"] = True
+    st.session_state["_cam_just_saved_msg"] = ""
     if not keep_type:
         st.session_state["contract_type"] = "housing_jeonse"
 
@@ -1509,6 +1639,10 @@ def apply_loaded_payload(
     st.session_state["draft_mode"] = bool(payload.get("draft_mode", False))
     st.session_state["custom_clauses_by_type"] = payload.get("custom_clauses_by_type", {})
     st.session_state["_clause_overrides"] = payload.get("clause_state", {})
+    st.session_state["captured_photos"] = []
+    st.session_state["cam_step"] = int(st.session_state.get("cam_step", 0)) + 1
+    st.session_state["camera_mode_open"] = True
+    st.session_state["_cam_just_saved_msg"] = ""
 
 
 def _wkey(field: str) -> str:
@@ -1800,32 +1934,132 @@ def render_attachments_and_ai_panel(
                 st.rerun()
 
         with tab_cam:
-            st.caption("스마트폰·태블릿·노트북 카메라로 신분증·건축물대장·등기부등본을 바로 촬영하세요.")
-            cam_photo = st.camera_input(
-                "서류 촬영",
-                key=f"att_camera_{contract_id}_{len(existing_atts)}",
-            )
-            if st.button(
-                "📸 촬영 사진 보관함에 저장",
-                disabled=cam_photo is None,
-                use_container_width=True,
-                key="save_cam_att_btn",
-            ):
-                if cam_photo is not None:
-                    payload = _build_storage_payload(live_form, contract_type, type_cfg)
-                    ensure_contract_record_exists(contract_id, contract_type, type_cfg["label"], payload)
-                    if st.session_state.get("current_contract_status") == "unsaved":
-                        st.session_state["current_contract_status"] = "draft"
-                    save_attachment(
-                        contract_id,
-                        att_cat,
-                        f"camera_{att_cat}.jpg",
-                        cam_photo.getvalue(),
-                        cam_photo.type or "image/jpeg",
-                    )
+            captured_photos: list[dict[str, Any]] = st.session_state.setdefault("captured_photos", [])
+            cam_step: int = int(st.session_state.get("cam_step", 0))
+            camera_open: bool = bool(st.session_state.get("camera_mode_open", True))
+            cam_photo = None
+
+            just_saved_msg = st.session_state.get("_cam_just_saved_msg", "")
+            if just_saved_msg and not camera_open:
+                st.success(just_saved_msg)
+
+            if not camera_open:
+                if st.button(
+                    "📷 카메라 촬영 화면 다시 열기",
+                    use_container_width=True,
+                    type="primary",
+                    key="reopen_cam_studio_btn",
+                ):
+                    st.session_state["camera_mode_open"] = True
+                    st.session_state["_cam_just_saved_msg"] = ""
                     st.session_state["_expand_att_section"] = True
-                    st.success("촬영된 증빙서류가 보관함에 저장되었습니다.")
                     st.rerun()
+            else:
+                with st.container(key="camera_studio"):
+                    # 상단 큼직한 촬영 장수 배지
+                    st.markdown(
+                        f'<div class="cam-count-badge">📷 현재 촬영된 서류: '
+                        f'<span class="cam-count-pill">{len(captured_photos)}장</span></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # 촬영된 사진 썸네일 + 삭제(X) 버튼 (최대 4장씩 가로 정렬)
+                    if captured_photos:
+                        with st.container(key="cam_thumb_strip"):
+                            per_row = 4
+                            for row_start in range(0, len(captured_photos), per_row):
+                                row_items = captured_photos[row_start : row_start + per_row]
+                                t_cols = st.columns(per_row, gap="small")
+                                for offset, item in enumerate(row_items):
+                                    abs_idx = row_start + offset
+                                    with t_cols[offset]:
+                                        st.image(item["bytes"], use_container_width=True)
+                                        if st.button(
+                                            f"✕ #{abs_idx + 1}",
+                                            key=f"del_cap_photo_{item['id']}",
+                                            use_container_width=True,
+                                        ):
+                                            st.session_state["captured_photos"] = [
+                                                p for p in captured_photos if p["id"] != item["id"]
+                                            ]
+                                            st.session_state["_expand_att_section"] = True
+                                            st.rerun()
+
+                    # 세로로 크고 군더더기 없는 카메라 뷰파인더
+                    cam_photo = st.camera_input(
+                        "서류 촬영",
+                        key=f"cam_{cam_step}",
+                        label_visibility="collapsed",
+                    )
+
+                    total_ready_photos = len(captured_photos) + (1 if cam_photo is not None else 0)
+
+                    # 하단 단순·큼직한 버튼 2개
+                    with st.container(key="cam_add_btn_wrap"):
+                        if st.button(
+                            "➕ 사진 추가 / 연속 촬영",
+                            disabled=cam_photo is None,
+                            use_container_width=True,
+                            key="cam_add_next_btn",
+                        ):
+                            if cam_photo is not None:
+                                next_num = len(captured_photos) + 1
+                                captured_photos.append(
+                                    {
+                                        "id": f"cap_{cam_step}_{next_num}",
+                                        "bytes": cam_photo.getvalue(),
+                                        "mime": cam_photo.type or "image/jpeg",
+                                        "category": att_cat,
+                                        "filename": f"camera_{att_cat}_{next_num}.jpg",
+                                    }
+                                )
+                                st.session_state["captured_photos"] = captured_photos
+                                st.session_state["cam_step"] = cam_step + 1
+                                st.session_state["_cam_just_saved_msg"] = ""
+                                st.session_state["_expand_att_section"] = True
+                                st.rerun()
+
+                    with st.container(key="cam_finish_btn_wrap"):
+                        if st.button(
+                            f"✅ 촬영 마무리 및 저장 (총 {total_ready_photos}장)",
+                            disabled=total_ready_photos == 0,
+                            use_container_width=True,
+                            key="cam_finish_save_btn",
+                        ):
+                            photos_to_save = list(captured_photos)
+                            if cam_photo is not None:
+                                next_num = len(photos_to_save) + 1
+                                photos_to_save.append(
+                                    {
+                                        "id": f"cap_{cam_step}_{next_num}",
+                                        "bytes": cam_photo.getvalue(),
+                                        "mime": cam_photo.type or "image/jpeg",
+                                        "category": att_cat,
+                                        "filename": f"camera_{att_cat}_{next_num}.jpg",
+                                    }
+                                )
+                            if photos_to_save:
+                                payload = _build_storage_payload(live_form, contract_type, type_cfg)
+                                ensure_contract_record_exists(contract_id, contract_type, type_cfg["label"], payload)
+                                if st.session_state.get("current_contract_status") == "unsaved":
+                                    st.session_state["current_contract_status"] = "draft"
+                                for p_item in photos_to_save:
+                                    save_attachment(
+                                        contract_id,
+                                        p_item["category"],
+                                        p_item["filename"],
+                                        p_item["bytes"],
+                                        p_item["mime"],
+                                    )
+                                st.session_state["captured_photos"] = []
+                                st.session_state["cam_step"] = cam_step + 1
+                                st.session_state["camera_mode_open"] = False
+                                st.session_state["_cam_just_saved_msg"] = (
+                                    f"✅ 촬영한 증빙서류 총 {len(photos_to_save)}장이 보관함에 저장되었습니다. "
+                                    "아래 [✨ AI로 서류 읽어 자동 채우기]를 눌러 바로 반영하세요."
+                                )
+                                st.session_state["_expand_att_section"] = True
+                                st.rerun()
 
         # 보관된 증빙서류 열람 및 다운로드
         if existing_atts:
@@ -1859,7 +2093,8 @@ def render_attachments_and_ai_panel(
 
         # AI 자동 채우기 (Gemini API 연동 — 미저장 업로드/촬영 파일도 1클릭 자동 포함·보관)
         st.markdown("---")
-        pending_upload_cnt = len(uploaded_files or []) + (1 if cam_photo is not None else 0)
+        pending_captured = list(st.session_state.get("captured_photos", []))
+        pending_upload_cnt = len(uploaded_files or []) + len(pending_captured) + (1 if cam_photo is not None else 0)
         total_available = len(existing_atts) + pending_upload_cnt
         api_key = get_gemini_api_key(st.secrets)
 
@@ -1876,7 +2111,7 @@ def render_attachments_and_ai_panel(
             use_container_width=True,
             key="ai_autofill_btn",
         ):
-            # 아직 보관함에 저장하지 않은 업로드/촬영 파일이 있으면 먼저 자동 보관
+            # 아직 보관함에 저장하지 않은 업로드/연속촬영 파일이 있으면 먼저 자동 보관
             if pending_upload_cnt > 0:
                 payload = _build_storage_payload(live_form, contract_type, type_cfg)
                 ensure_contract_record_exists(contract_id, contract_type, type_cfg["label"], payload)
@@ -1887,14 +2122,26 @@ def render_attachments_and_ai_panel(
                         "application/pdf" if uf.name.lower().endswith(".pdf") else "image/jpeg"
                     )
                     save_attachment(contract_id, att_cat, uf.name, uf.getvalue(), mime)
+                for p_item in pending_captured:
+                    save_attachment(
+                        contract_id,
+                        p_item["category"],
+                        p_item["filename"],
+                        p_item["bytes"],
+                        p_item["mime"],
+                    )
                 if cam_photo is not None:
                     save_attachment(
                         contract_id,
                         att_cat,
-                        f"camera_{att_cat}.jpg",
+                        f"camera_{att_cat}_{len(pending_captured) + 1}.jpg",
                         cam_photo.getvalue(),
                         cam_photo.type or "image/jpeg",
                     )
+                if pending_captured or cam_photo is not None:
+                    st.session_state["captured_photos"] = []
+                    st.session_state["cam_step"] = int(st.session_state.get("cam_step", 0)) + 1
+                    st.session_state["camera_mode_open"] = False
                 existing_atts = list_attachments(contract_id)
 
             docs_for_ai = []
