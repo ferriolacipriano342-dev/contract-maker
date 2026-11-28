@@ -66,45 +66,73 @@ from utils.storage import (
 BASE_DIR = Path(__file__).resolve().parent
 CLAUSES_PATH = BASE_DIR / "data" / "clauses.json"
 
-# 계약 유형별 전용 테마 컬러 (선택 카드·배지·드롭다운 강조용)
+# 계약 유형별 전용 카테고리 테마 컬러 (요양시설·주거·상가·토지 직관적 구분 + 선택 카드·배지·드롭다운 강조용)
 CONTRACT_TYPE_THEMES: dict[str, dict[str, str]] = {
-    "housing_jeonse": {
+    "nursing_home_transfer": {
+        "category": "🏥 요양시설",
+        "primary": "#047857",
+        "hover": "#065F46",
+        "soft_bg": "#ECFDF5",
+        "badge_bg": "#D1FAE5",
+    },
+    "apartment_sale": {
+        "category": "🏢 주거 · 아파트",
         "primary": "#1D4ED8",
         "hover": "#1E40AF",
         "soft_bg": "#EFF6FF",
         "badge_bg": "#DBEAFE",
     },
     "real_estate_sale": {
-        "primary": "#1E3A8A",
-        "hover": "#172554",
+        "category": "🏠 주거 · 주택",
+        "primary": "#1E40AF",
+        "hover": "#1E3A8A",
         "soft_bg": "#EEF2FF",
         "badge_bg": "#E0E7FF",
     },
-    "housing_wolse": {
-        "primary": "#0F766E",
-        "hover": "#115E59",
-        "soft_bg": "#F0FDFA",
-        "badge_bg": "#CCFBF1",
+    "housing_jeonse": {
+        "category": "🏠 주거 · 전세",
+        "primary": "#2563EB",
+        "hover": "#1D4ED8",
+        "soft_bg": "#EFF6FF",
+        "badge_bg": "#DBEAFE",
     },
-    "commercial_lease": {
+    "housing_wolse": {
+        "category": "🏠 주거 · 월세",
+        "primary": "#0284C7",
+        "hover": "#0369A1",
+        "soft_bg": "#F0F9FF",
+        "badge_bg": "#E0F2FE",
+    },
+    "commercial_sale": {
+        "category": "🏪 상가 · 매매",
         "primary": "#6D28D9",
         "hover": "#5B21B6",
         "soft_bg": "#F5F3FF",
         "badge_bg": "#EDE9FE",
     },
-    "nursing_home_transfer": {
-        "primary": "#047857",
-        "hover": "#065F46",
-        "soft_bg": "#ECFDF5",
-        "badge_bg": "#D1FAE5",
+    "commercial_lease": {
+        "category": "🏪 상가 · 임대차",
+        "primary": "#7C3AED",
+        "hover": "#6D28D9",
+        "soft_bg": "#F5F3FF",
+        "badge_bg": "#EDE9FE",
     },
     "premium_rights": {
-        "primary": "#B45309",
-        "hover": "#92400E",
+        "category": "🏪 상가 · 권리금",
+        "primary": "#9333EA",
+        "hover": "#7E22CE",
+        "soft_bg": "#FAF5FF",
+        "badge_bg": "#F3E8FF",
+    },
+    "farmland_sale": {
+        "category": "🌾 토지 · 농지",
+        "primary": "#92400E",
+        "hover": "#78350F",
         "soft_bg": "#FFFBEB",
-        "badge_bg": "#FEF3C7",
+        "badge_bg": "#FDE68A",
     },
     "land_sale": {
+        "category": "⛰️ 토지 · 일반",
         "primary": "#78350F",
         "hover": "#451A03",
         "soft_bg": "#FDF8F3",
@@ -1422,6 +1450,65 @@ def _sample_form_values(contract_type: str) -> dict[str, Any]:
                 "balance": 54_000_000,
             }
         )
+    elif contract_type == "apartment_sale":
+        data.update(
+            {
+                "address": "경기도 남양주시 다산동 6123 다산자이아파트 203동 1402호",
+                "land_category": "대",
+                "land_share_ratio": "45210/48.2510",
+                "land_area": "48.25",
+                "building_structure": "철근콘크리트",
+                "building_use": "공동주택(아파트)",
+                "building_area": "84.9720",
+                "lease_part": "203동 1402호 전부",
+                "lease_area": "84.9720",
+                "deposit": 680_000_000,
+                "down_payment": 68_000_000,
+                "loan_assumption": 200_000_000,
+                "lease_deposit_assumption": 0,
+                "interim_payment": 100_000_000,
+                "use_interim_date": True,
+                "balance": 312_000_000,
+            }
+        )
+    elif contract_type == "commercial_sale":
+        data.update(
+            {
+                "address": "경기도 구리시 인창동 670-1 센트럴프라자 1층 104호",
+                "land_category": "대",
+                "land_share_ratio": "1850/31.20",
+                "land_area": "31.20",
+                "building_structure": "철근콘크리트",
+                "building_use": "제1종근린생활시설",
+                "building_area": "56.20",
+                "lease_part": "1층 104호 구분상가 전부",
+                "lease_area": "56.20",
+                "vat_type": "사업포괄양수도(부가세 없음)",
+                "deposit": 750_000_000,
+                "down_payment": 75_000_000,
+                "loan_assumption": 300_000_000,
+                "lease_deposit_assumption": 50_000_000,
+                "interim_payment": 0,
+                "balance": 325_000_000,
+            }
+        )
+    elif contract_type == "farmland_sale":
+        data.update(
+            {
+                "address": "경기도 양평군 용문면 다문리 456-2",
+                "land_category": "답",
+                "land_area": "1320.0",
+                "land_zoning": "농림지역 (농업진흥구역)",
+                "land_status": "논 (경작 중)",
+                "lease_part": "농지 전부",
+                "extra_parcels": "",
+                "deposit": 420_000_000,
+                "down_payment": 42_000_000,
+                "loan_assumption": 0,
+                "interim_payment": 0,
+                "balance": 378_000_000,
+            }
+        )
     elif contract_type == "land_sale":
         data.update(
             {
@@ -1477,13 +1564,17 @@ def ensure_state_initialized() -> None:
     if "current_contract_status" not in st.session_state:
         st.session_state["current_contract_status"] = "unsaved"
     if "contract_type" not in st.session_state:
-        st.session_state["contract_type"] = "housing_jeonse"
+        st.session_state["contract_type"] = "nursing_home_transfer"
     if "color_mode" not in st.session_state:
         st.session_state["color_mode"] = "color"
     if "ui_font_scale" not in st.session_state:
         st.session_state["ui_font_scale"] = "보통"
     if "mobile_active_tab" not in st.session_state:
         st.session_state["mobile_active_tab"] = "input"
+    if "blank_form_mode" not in st.session_state:
+        st.session_state["blank_form_mode"] = True
+    if "_pending_blank_form_mode" in st.session_state:
+        st.session_state["blank_form_mode"] = bool(st.session_state.pop("_pending_blank_form_mode"))
     if "draft_mode" not in st.session_state:
         st.session_state["draft_mode"] = False
     if "custom_clauses_by_type" not in st.session_state:
@@ -1554,11 +1645,14 @@ def _consume_pending_autofill() -> None:
     overrides = dict(st.session_state.get("_clause_overrides", {}))
     if max_bond:
         filled_keys.append("max_bond_amount")
-        target_cid = (
-            "land_req_04"
-            if contract_type == "land_sale"
-            else ("sale_req_02" if contract_type == "real_estate_sale" else "jeonse_req_02")
-        )
+        bond_clause_map = {
+            "land_sale": "land_req_04",
+            "farmland_sale": "farm_req_04",
+            "apartment_sale": "apt_req_02",
+            "commercial_sale": "comm_sale_req_02",
+            "real_estate_sale": "sale_req_02",
+        }
+        target_cid = bond_clause_map.get(contract_type, "jeonse_req_02")
         entry = dict(overrides.get(target_cid, {}))
         entry_vars = dict(entry.get("variables", {}))
         entry_vars["채권최고액"] = max_bond
@@ -1571,6 +1665,8 @@ def _consume_pending_autofill() -> None:
     st.session_state["_form_data"] = form
     st.session_state["_clause_overrides"] = overrides
     st.session_state["_expand_att_section"] = True
+    if filled_keys:
+        st.session_state["blank_form_mode"] = False
     if party_filled:
         st.session_state["_expand_party_section"] = True
 
@@ -1583,12 +1679,13 @@ def _consume_pending_autofill() -> None:
 
 
 def start_new_contract(keep_type: bool = True) -> None:
-    """새 계약서 작성 시작 (새 ID 발급 + 폼/특약 완전 초기화)."""
+    """새 계약서 작성 시작 (새 ID 발급 + 폼/특약 완전 초기화 + 빈 양식 모드 활성화)."""
     _purge_old_widget_keys()
     st.session_state["_form_nonce"] = int(st.session_state.get("_form_nonce", 0)) + 1
     st.session_state["_form_data"] = _empty_form_values()
     st.session_state["current_contract_id"] = generate_contract_id()
     st.session_state["current_contract_status"] = "unsaved"
+    st.session_state["_pending_blank_form_mode"] = True
     st.session_state["custom_clauses_by_type"] = {}
     st.session_state["_clause_overrides"] = {}
     st.session_state["ai_last_result"] = None
@@ -1598,14 +1695,15 @@ def start_new_contract(keep_type: bool = True) -> None:
     st.session_state["camera_mode_open"] = True
     st.session_state["_cam_just_saved_msg"] = ""
     if not keep_type:
-        st.session_state["contract_type"] = "housing_jeonse"
+        st.session_state["contract_type"] = "nursing_home_transfer"
 
 
 def reset_form_to_empty() -> None:
-    """[입력 초기화]: 현재 문서 ID는 유지하고 입력값만 전부 '' / 0으로 초기화한다."""
+    """[입력 초기화]: 현재 문서 ID는 유지하고 입력값만 전부 '' / 0으로 초기화 + 빈 양식 모드 활성화."""
     _purge_old_widget_keys()
     st.session_state["_form_nonce"] = int(st.session_state.get("_form_nonce", 0)) + 1
     st.session_state["_form_data"] = _empty_form_values()
+    st.session_state["_pending_blank_form_mode"] = True
     st.session_state["custom_clauses_by_type"] = {}
     st.session_state["_clause_overrides"] = {}
     st.session_state["ai_last_result"] = None
@@ -1616,6 +1714,7 @@ def apply_sample_to_form(contract_type: str) -> None:
     _purge_old_widget_keys()
     st.session_state["_form_nonce"] = int(st.session_state.get("_form_nonce", 0)) + 1
     st.session_state["_form_data"] = _sample_form_values(contract_type)
+    st.session_state["_pending_blank_form_mode"] = False
     st.session_state["custom_clauses_by_type"] = {}
     st.session_state["_clause_overrides"] = {}
 
@@ -1637,6 +1736,7 @@ def apply_loaded_payload(
     st.session_state["contract_type"] = contract_type
     st.session_state["color_mode"] = payload.get("color_mode", "color")
     st.session_state["draft_mode"] = bool(payload.get("draft_mode", False))
+    st.session_state["_pending_blank_form_mode"] = False
     st.session_state["custom_clauses_by_type"] = payload.get("custom_clauses_by_type", {})
     st.session_state["_clause_overrides"] = payload.get("clause_state", {})
     st.session_state["captured_photos"] = []
@@ -2361,58 +2461,84 @@ def main() -> None:
 
     type_keys = get_ordered_type_keys(clauses_lib)
     type_labels = {k: clauses_lib[k]["label"] for k in type_keys}
-    active_type_key = st.session_state.get("contract_type", "housing_jeonse")
+    active_type_key = st.session_state.get("contract_type", "nursing_home_transfer")
     if active_type_key not in CONTRACT_TYPE_THEMES:
-        active_type_key = "housing_jeonse"
+        active_type_key = "nursing_home_transfer"
     theme = CONTRACT_TYPE_THEMES[active_type_key]
-    active_type_label = type_labels.get(active_type_key, "주택 전세")
+    active_type_label = type_labels.get(active_type_key, "🏥 [요양시설] 요양원 양도·양수")
+    active_cat_label = theme.get("category", "계약서")
 
-    # 선택된 계약 유형에 따른 전용 카드·드롭다운 동적 테마 CSS
+    # 선택된 계약 유형 카테고리에 따른 전용 고급 선택 카드·드롭다운 동적 테마 CSS (19px 굵은 글씨 강조)
     st.markdown(
         f"""
         <style>
           .st-key-contract_type_card {{
-            border: 2px solid {theme['primary']} !important;
-            background: {theme['soft_bg']} !important;
-            border-radius: 12px !important;
-            padding: 0.65rem 0.85rem 0.75rem 0.85rem !important;
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
+            border: 3px solid {theme['primary']} !important;
+            border-left: 7px solid {theme['primary']} !important;
+            background: linear-gradient(135deg, {theme['soft_bg']} 0%, #ffffff 100%) !important;
+            border-radius: 14px !important;
+            padding: 0.7rem 0.9rem 0.8rem 0.9rem !important;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12) !important;
+          }}
+          .st-key-contract_type_card .type-active-badge {{
+            font-size: 0.9rem !important;
+            font-weight: 900 !important;
+            padding: 4px 12px !important;
+            letter-spacing: 0.03em !important;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14) !important;
+          }}
+          .st-key-contract_type_card .type-hint-badge {{
+            font-size: 0.82rem !important;
+            font-weight: 800 !important;
+            padding: 3px 10px !important;
           }}
           .st-key-contract_type [data-baseweb="select"] > div {{
-            border: 2px solid {theme['primary']} !important;
-            border-radius: 10px !important;
+            border: 2.5px solid {theme['primary']} !important;
+            border-radius: 11px !important;
             background-color: #ffffff !important;
-            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.09) !important;
-            min-height: 46px !important;
-            padding-right: 6px !important;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1) !important;
+            min-height: 54px !important;
+            padding: 4px 8px 4px 10px !important;
             cursor: pointer !important;
             transition: all 0.16s ease !important;
           }}
           .st-key-contract_type [data-baseweb="select"] > div:hover {{
             border-color: {theme['hover']} !important;
             background-color: {theme['soft_bg']} !important;
-            box-shadow: 0 5px 14px rgba(15, 23, 42, 0.16) !important;
+            box-shadow: 0 5px 15px rgba(15, 23, 42, 0.18) !important;
           }}
           .st-key-contract_type [data-baseweb="select"] span,
           .st-key-contract_type [data-baseweb="select"] div[value],
           .st-key-contract_type [data-baseweb="select"] input {{
-            font-size: 1.12rem !important;
-            font-weight: 800 !important;
+            font-size: 19px !important;
+            font-weight: 900 !important;
             color: {theme['primary']} !important;
+            letter-spacing: -0.01em !important;
           }}
           .st-key-contract_type [data-baseweb="select"] svg {{
             background-color: {theme['primary']} !important;
             color: #ffffff !important;
             fill: #ffffff !important;
-            width: 30px !important;
-            height: 30px !important;
-            padding: 5px !important;
-            border-radius: 8px !important;
+            width: 34px !important;
+            height: 34px !important;
+            padding: 6px !important;
+            border-radius: 9px !important;
             transition: background-color 0.16s ease, transform 0.16s ease !important;
           }}
           .st-key-contract_type [data-baseweb="select"] > div:hover svg {{
             background-color: {theme['hover']} !important;
             transform: scale(1.06) !important;
+          }}
+          @media (max-width: 768px) {{
+            .st-key-contract_type [data-baseweb="select"] span,
+            .st-key-contract_type [data-baseweb="select"] div[value],
+            .st-key-contract_type [data-baseweb="select"] input {{
+              font-size: 19px !important;
+              font-weight: 900 !important;
+            }}
+            .st-key-contract_type [data-baseweb="select"] > div {{
+              min-height: 54px !important;
+            }}
           }}
         </style>
         """,
@@ -2426,12 +2552,12 @@ def main() -> None:
             <div class="app-header-icon">📑</div>
             <div>
               <h1 class="app-header-title">통합계약서</h1>
-              <p class="app-header-sub">부동산·토지 매매 · 임대차 · 상가 · 요양원 양도양수 · 권리금 전문 작성기</p>
+              <p class="app-header-sub">요양시설 · 아파트·주택 · 상가 · 농지·토지 전문 계약서 작성기</p>
             </div>
           </div>
-          <div class="app-header-pill">
-            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{theme['primary']};border:1.5px solid #fff;"></span>
-            <span>현재 선택: {active_type_label}</span>
+          <div class="app-header-pill" style="border-color:{theme['badge_bg']};">
+            <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:{theme['primary']};border:2px solid #fff;"></span>
+            <span>{active_type_label}</span>
           </div>
         </div>
         """,
@@ -2448,16 +2574,16 @@ def main() -> None:
         )
     inject_font_scale_css(ui_font_scale)
 
-    # ==================== 상단 제어 바 (1행: 계약유형 · 색상모드 · 초안 · 예시/초기화) ====================
+    # ==================== 상단 제어 바 (1행: 강화된 계약유형 카드 · 색상모드 · 빈 양식/초안 · 예시/초기화) ====================
     with st.container(key="top_controls_row"):
-        ctrl1, ctrl2, ctrl3, ctrl4 = st.columns([2.5, 1.55, 1.0, 1.55], gap="small")
+        ctrl1, ctrl2, ctrl3, ctrl4 = st.columns([2.75, 1.35, 1.45, 1.35], gap="small")
         with ctrl1:
             with st.container(key="contract_type_card"):
                 st.markdown(
                     f"""
                     <div class="type-card-header">
-                      <span class="type-active-badge" style="background:{theme['primary']};">● {active_type_label}</span>
-                      <span class="type-hint-badge" style="background:{theme['badge_bg']}; color:{theme['primary']}; border:1px solid {theme['primary']};">▼ 클릭하여 계약 유형 변경</span>
+                      <span class="type-active-badge" style="background:{theme['primary']};">{active_cat_label}</span>
+                      <span class="type-hint-badge" style="background:{theme['badge_bg']}; color:{theme['primary']}; border:1.5px solid {theme['primary']};">▼ 계약 유형 변경</span>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -2478,6 +2604,11 @@ def main() -> None:
                 key="color_mode",
             )
         with ctrl3:
+            blank_form_mode = st.toggle(
+                "📄 빈 양식 모드 (날짜·특약 비우기)",
+                key="blank_form_mode",
+                help="켜면 날짜를 '20  년  월  일' 빈칸으로 두고 기본 특약 문구도 모두 비워 수기용 완전 빈 양식으로 출력합니다.",
+            )
             draft_mode = st.toggle(
                 "초안 워터마크",
                 key="draft_mode",
@@ -2491,7 +2622,7 @@ def main() -> None:
                         apply_sample_to_form(selected_type)
                         st.rerun()
                 with qt2:
-                    if st.button("🧹 초기화", use_container_width=True, help="모든 입력값을 빈칸/0원으로 초기화합니다."):
+                    if st.button("🧹 초기화", use_container_width=True, help="모든 입력값을 빈칸/0원으로 초기화하고 빈 양식 모드로 전환합니다."):
                         reset_form_to_empty()
                         st.rerun()
 
@@ -2573,31 +2704,31 @@ def main() -> None:
             p2_role=p2_role,
         )
 
-        # ① 대상 부동산 / 토지 / 시설 / 점포의 표시
-        sec1_label = (
-            "① 토지의 표시 (지번·지목·면적·용도지역)"
-            if selected_type == "land_sale"
-            else (
-                "① 양도·양수 대상 요양시설의 표시"
-                if selected_type == "nursing_home_transfer"
-                else (
-                    "① 대상 점포 및 신규 임대차 조건"
-                    if selected_type == "premium_rights"
-                    else ("① 상가건물의 표시" if selected_type == "commercial_lease" else "① 부동산의 표시")
-                )
-            )
-        )
+        # ① 대상 부동산 / 토지 / 농지 / 아파트 / 상가 / 시설 / 점포의 표시
+        sec1_label_map = {
+            "nursing_home_transfer": "① 양도·양수 대상 요양시설의 표시",
+            "apartment_sale": "① 아파트의 표시 (동·호수·대지권·면적)",
+            "commercial_sale": "① 상가건물의 표시 (소재지·구조·호수·면적)",
+            "commercial_lease": "① 상가건물의 표시",
+            "premium_rights": "① 대상 점포 및 신규 임대차 조건",
+            "farmland_sale": "① 농지의 표시 (지번·지목·면적·용도지역)",
+            "land_sale": "① 토지의 표시 (지번·지목·면적·용도지역)",
+        }
+        sec1_label = sec1_label_map.get(selected_type, "① 부동산의 표시")
         with st.expander(sec1_label, expanded=True):
-            if selected_type == "land_sale":
+            if selected_type in ("land_sale", "farmland_sale"):
+                is_farm = selected_type == "farmland_sale"
                 live_form["address"] = st.text_input(
-                    "토지 소재지 (지번)",
+                    "농지 소재지 (지번)" if is_farm else "토지 소재지 (지번)",
                     key=_wkey("address"),
-                    placeholder="예: 경기도 양평군 양서면 목왕리 123-4",
+                    placeholder="예: 경기도 양평군 용문면 다문리 456-2" if is_farm else "예: 경기도 양평군 양서면 목왕리 123-4",
                 )
                 ld1, ld2 = st.columns(2)
                 with ld1:
                     live_form["land_category"] = st.text_input(
-                        "지목", key=_wkey("land_category"), placeholder="전, 답, 대, 임야 등"
+                        "지목",
+                        key=_wkey("land_category"),
+                        placeholder="전, 답, 과수원 등" if is_farm else "전, 답, 대, 임야 등",
                     )
                 with ld2:
                     live_form["land_area"] = st.text_input(
@@ -2615,19 +2746,19 @@ def main() -> None:
                     live_form["lease_part"] = st.text_input(
                         "매매 대상 (전부 / 지분율)",
                         key=_wkey("lease_part"),
-                        placeholder="예: 토지 전부 (또는 지분 1/2)",
+                        placeholder="예: 농지 전부 (또는 지분 1/2)" if is_farm else "예: 토지 전부 (또는 지분 1/2)",
                     )
                 with ld4:
                     live_form["land_zoning"] = st.text_input(
                         "용도지역·지구",
                         key=_wkey("land_zoning"),
-                        placeholder="예: 계획관리지역, 농림지역",
+                        placeholder="예: 농림지역(농업진흥구역), 계획관리지역" if is_farm else "예: 계획관리지역, 농림지역",
                     )
 
                 live_form["land_status"] = st.text_input(
-                    "토지 현황",
+                    "경작 현황" if is_farm else "토지 현황",
                     key=_wkey("land_status"),
-                    placeholder="예: 경작 중(전), 나대지, 임야 등",
+                    placeholder="예: 논(경작 중), 밭, 비닐하우스 등" if is_farm else "예: 경작 중(전), 나대지, 임야 등",
                 )
 
                 live_form["extra_parcels"] = st.text_area(
@@ -2770,8 +2901,20 @@ def main() -> None:
                         "건물 용도", key=_wkey("building_use"), placeholder="예: 공동주택"
                     )
 
-                part_lbl = "매매대상 부분" if selected_type == "real_estate_sale" else "임대할 부분"
-                area_lbl = "매매 면적 (㎡)" if selected_type == "real_estate_sale" else "임대 면적 (㎡)"
+                part_lbl = (
+                    "매매대상 (동·호수)"
+                    if selected_type == "apartment_sale"
+                    else (
+                        "매매대상 (층·호수)"
+                        if selected_type == "commercial_sale"
+                        else ("매매대상 부분" if selected_type == "real_estate_sale" else "임대할 부분")
+                    )
+                )
+                area_lbl = (
+                    "매매 면적 (㎡)"
+                    if selected_type in ("apartment_sale", "real_estate_sale", "commercial_sale")
+                    else "임대 면적 (㎡)"
+                )
                 r4c1, r4c2 = st.columns([1.4, 1.0])
                 with r4c1:
                     live_form["lease_part"] = st.text_input(
@@ -2792,7 +2935,7 @@ def main() -> None:
                 live_form["deposit"] = deposit_val
                 py_unit_hint = (
                     f" · 평당 {format_price_per_pyeong(deposit_val, live_form.get('land_area'))}"
-                    if selected_type == "land_sale"
+                    if selected_type in ("land_sale", "farmland_sale")
                     and format_price_per_pyeong(deposit_val, live_form.get("land_area"))
                     else ""
                 )
@@ -2826,7 +2969,7 @@ def main() -> None:
             lease_dep_val = 0
             escrow_val = 0
 
-            if selected_type == "land_sale":
+            if selected_type in ("land_sale", "farmland_sale"):
                 loan_val = st.number_input(
                     "융자금 승계 — 근저당권(원)",
                     min_value=0,
@@ -2840,7 +2983,7 @@ def main() -> None:
                         unsafe_allow_html=True,
                     )
 
-            if selected_type == "real_estate_sale":
+            if selected_type in ("real_estate_sale", "apartment_sale", "commercial_sale"):
                 s1, s2 = st.columns(2)
                 with s1:
                     loan_val = st.number_input(
@@ -2865,6 +3008,16 @@ def main() -> None:
                             f'<div class="kr-amount-hint">금 {number_to_korean(lease_dep_val)}원정</div>',
                             unsafe_allow_html=True,
                         )
+                if selected_type == "commercial_sale":
+                    vat_options = ["사업포괄양수도(부가세 없음)", "부가가치세 별도", "부가가치세 포함", "면세/해당없음"]
+                    vat_key = _wkey("vat_type")
+                    if st.session_state.get(vat_key) not in vat_options:
+                        st.session_state[vat_key] = vat_options[0]
+                    live_form["vat_type"] = st.selectbox(
+                        "건물분 부가가치세 구분",
+                        options=vat_options,
+                        key=vat_key,
+                    )
 
             if selected_type == "nursing_home_transfer":
                 e1, e2 = st.columns([1.3, 1.0])
@@ -3024,8 +3177,15 @@ def main() -> None:
                 live_form["handover_date"] = st.date_input(handover_lbl, key=_wkey("handover_date"))
 
         # ③ 정밀 특약사항 선택기
-        with st.expander("③ 정밀 특약사항 선택기 (clauses.json 연동)", expanded=True):
-            rendered_clauses = render_clause_selector(selected_type, type_cfg, live_form)
+        with st.expander("③ 정밀 특약사항 선택기 (clauses.json 연동)", expanded=not blank_form_mode):
+            if blank_form_mode:
+                st.info(
+                    "📄 현재 **[빈 양식 모드]**가 켜져 있어 특약사항이 깨끗한 수기용 빈칸으로 출력됩니다. "
+                    "정밀 특약을 넣으려면 상단의 **[📄 빈 양식 모드]** 토글을 꺼 주세요."
+                )
+                rendered_clauses = []
+            else:
+                rendered_clauses = render_clause_selector(selected_type, type_cfg, live_form)
 
         # ④ 당사자 인적사항 (AI로 당사자 정보 추출 시 자동 펼침)
         with st.expander(
@@ -3128,8 +3288,9 @@ def main() -> None:
     form_payload["form_title"] = type_cfg["form_title"]
     form_payload["color_mode"] = color_mode
     form_payload["draft_mode"] = draft_mode
+    form_payload["blank_form_mode"] = blank_form_mode
     form_payload["interim_date"] = live_form["interim_date"] if live_form.get("use_interim_date") else None
-    form_payload["rendered_clauses"] = rendered_clauses
+    form_payload["rendered_clauses"] = [] if blank_form_mode else rendered_clauses
 
     context = build_contract_context(form_payload)
     is_valid = context["is_valid"]
@@ -3143,8 +3304,12 @@ def main() -> None:
                 and context["interim_payment"] == 0
                 and context["balance"] == 0
             )
-            if is_blank_amounts:
-                st.info("📝 빈 양식(수기 작성용) 상태입니다. 아무것도 입력하지 않아도 바로 인쇄·다운로드할 수 있습니다.")
+            if blank_form_mode:
+                st.info(
+                    "📄 **[완전 빈 양식 모드]** 날짜(`20  년  월  일`)·특약·금액이 모두 비워져 수기 작성용으로 바로 인쇄·다운로드할 수 있습니다."
+                )
+            elif is_blank_amounts:
+                st.info("📝 금액 미입력 상태입니다. 이 상태에서도 바로 인쇄·다운로드할 수 있습니다.")
             elif is_valid:
                 st.success(f"✅ {context['validation_msg']}")
             else:
@@ -3165,7 +3330,8 @@ def main() -> None:
             date_tag = str(live_form.get("contract_date") or date.today()).replace("-", "")
             color_tag = "_컬러" if color_mode == "color" else "_흑백"
             draft_tag = "_초안" if draft_mode else ""
-            base_filename = f"{type_cfg['label'].replace(' ', '_')}_계약서_{date_tag}{color_tag}{draft_tag}"
+            clean_type_name = meta.get("short_label", type_cfg["label"]).replace(" ", "_")
+            base_filename = f"{clean_type_name}_계약서_{date_tag}{color_tag}{draft_tag}"
 
             printable_html = render_html(context, include_print_toolbar=True)
             has_user_hwpx = has_custom_hwpx_template(selected_type)
