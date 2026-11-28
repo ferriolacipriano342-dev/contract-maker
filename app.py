@@ -145,15 +145,22 @@ CONTRACT_TYPE_THEMES: dict[str, dict[str, str]] = {
 }
 
 st.set_page_config(
-    page_title="통합계약서 — 부동산·요양원 전문 작성기",
-    page_icon="📑",
+    page_title="REALTY FLOW — 부동산·요양시설 전문 계약 플랫폼",
+    page_icon="◆",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 st.markdown(
     """
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Noto+Sans+KR:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" />
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
+      html, body, .stApp {
+        font-family: 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', sans-serif;
+      }
       .block-container {
         padding-top: 0.45rem !important;
         padding-bottom: 1.5rem !important;
@@ -161,65 +168,122 @@ st.markdown(
         padding-right: 1rem !important;
         max-width: 100% !important;
       }
+      /* ==================== REALTY FLOW 모던 럭셔리 중앙 헤더 ==================== */
       .app-header-bar {
+        position: relative;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        padding: 0.7rem 1.1rem;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #0b1c3d 0%, #163368 55%, #1d4ed8 100%);
-        border-bottom: 3.5px solid #f59e0b;
-        box-shadow: 0 5px 16px rgba(15, 23, 42, 0.16);
-        color: #f8fafc;
-        margin-bottom: 0.55rem;
-      }
-      .app-header-left {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-      .app-header-icon {
-        display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.14);
-        border: 1.5px solid rgba(251, 191, 36, 0.65);
-        font-size: 1.45rem;
-        flex-shrink: 0;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        text-align: center;
+        padding: 1.15rem 1.4rem 1.05rem 1.4rem;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #0f172a 0%, #172136 52%, #1e293b 100%);
+        border: 1px solid rgba(197, 164, 103, 0.28);
+        border-bottom: 2px solid rgba(197, 164, 103, 0.72);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+        color: #f8fafc;
+        margin-bottom: 0.65rem;
+        overflow: hidden;
+      }
+      .app-header-bar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, rgba(197, 164, 103, 0.65) 50%, transparent 100%);
       }
       .app-header-title {
         margin: 0;
-        font-size: 1.65rem;
-        font-weight: 900;
-        letter-spacing: 0.08em;
+        font-family: 'Montserrat', 'Plus Jakarta Sans', sans-serif !important;
+        font-size: 2.05rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        padding-left: 0.16em;
         line-height: 1.15;
         color: #ffffff;
+        white-space: nowrap;
+      }
+      .app-header-divider {
+        width: 54px;
+        height: 1.5px;
+        margin: 0.48rem auto 0.45rem auto;
+        background: linear-gradient(90deg, transparent 0%, #c5a467 50%, transparent 100%);
       }
       .app-header-sub {
-        margin: 0.18rem 0 0 0;
+        margin: 0;
+        font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
         font-size: 0.84rem;
         font-weight: 500;
-        color: #dbeafe;
-        letter-spacing: 0.01em;
+        color: #94a3b8;
+        letter-spacing: 0.04em;
+        line-height: 1.4;
       }
-      .app-header-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.14);
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        color: #ffffff;
-        font-size: 0.85rem;
-        font-weight: 700;
-        backdrop-filter: blur(4px);
+      /* ==================== 좌측 작성툴 섹션 소제목(Expander) 세련된 컬러 포인트 ==================== */
+      .st-key-form_pane [data-testid="stExpander"] {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04) !important;
+        margin-bottom: 0.15rem !important;
+      }
+      .st-key-form_pane [data-testid="stExpander"] details > summary {
+        background: #f1f5f9 !important;
+        border-left: 4px solid #1e3a5f !important;
+        border-radius: 9px !important;
+        color: #1e293b !important;
+        font-weight: 800 !important;
+        transition: background-color 0.16s ease, border-color 0.16s ease !important;
+      }
+      .st-key-form_pane [data-testid="stExpander"] details > summary:hover {
+        background: #e2e8f0 !important;
+      }
+      .st-key-form_pane [data-testid="stExpander"] details[open] > summary {
+        border-radius: 9px 9px 0 0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+      }
+      .st-key-form_pane [data-testid="stExpander"] details > summary p,
+      .st-key-form_pane [data-testid="stExpander"] details > summary span {
+        color: #1e293b !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.01em !important;
+      }
+      /* AI 서류 자동 채우기: 연한 라벤더·인디고 틴트 */
+      .st-key-sec_ai_att [data-testid="stExpander"] details > summary {
+        background: #f5f3ff !important;
+        border-left: 4px solid #6366f1 !important;
+      }
+      .st-key-sec_ai_att [data-testid="stExpander"] details > summary:hover {
+        background: #ede9fe !important;
+      }
+      /* ② 계약내용 및 대금: 연한 블루그레이·아이스블루 틴트 */
+      .st-key-sec_pay [data-testid="stExpander"] details > summary {
+        background: #eff6ff !important;
+        border-left: 4px solid #2563eb !important;
+      }
+      .st-key-sec_pay [data-testid="stExpander"] details > summary:hover {
+        background: #dbeafe !important;
+      }
+      /* ③ 정밀 특약사항 · AI 특약 생성기: 연한 바이올렛·슬레이트 틴트 */
+      .st-key-sec_clause [data-testid="stExpander"] details > summary {
+        background: #f5f3ff !important;
+        border-left: 4px solid #7c3aed !important;
+      }
+      .st-key-sec_clause [data-testid="stExpander"] details > summary:hover {
+        background: #ede9fe !important;
+      }
+      /* ④ 당사자 · ⑤ 개업공인중개사: 차분한 쿨 슬레이트 틴트 */
+      .st-key-sec_party [data-testid="stExpander"] details > summary,
+      .st-key-sec_broker [data-testid="stExpander"] details > summary {
+        background: #f8fafc !important;
+        border-left: 4px solid #475569 !important;
+      }
+      .st-key-sec_party [data-testid="stExpander"] details > summary:hover,
+      .st-key-sec_broker [data-testid="stExpander"] details > summary:hover {
+        background: #f1f5f9 !important;
       }
       .type-card-header {
         display: flex;
@@ -502,24 +566,23 @@ st.markdown(
           padding-top: 0.35rem !important;
         }
         .app-header-bar {
-          padding: 0.5rem 0.75rem !important;
-          margin-bottom: 0.35rem !important;
-          gap: 0.4rem !important;
-        }
-        .app-header-icon {
-          width: 34px !important;
-          height: 34px !important;
-          font-size: 1.15rem !important;
+          padding: 0.8rem 0.75rem 0.75rem 0.75rem !important;
+          margin-bottom: 0.45rem !important;
         }
         .app-header-title {
-          font-size: 1.28rem !important;
+          font-size: 1.38rem !important;
+          letter-spacing: 0.14em !important;
+          padding-left: 0.14em !important;
+        }
+        .app-header-divider {
+          width: 42px !important;
+          margin: 0.32rem auto 0.3rem auto !important;
         }
         .app-header-sub {
-          display: none !important;
-        }
-        .app-header-pill {
-          padding: 3px 9px !important;
-          font-size: 12.5px !important;
+          display: block !important;
+          font-size: 11.5px !important;
+          color: #94a3b8 !important;
+          letter-spacing: 0.02em !important;
         }
         .st-key-font_size_bar {
           padding: 0.2rem 0.55rem !important;
@@ -1322,24 +1385,26 @@ def render_password_lock_screen(expected_password: str) -> None:
           }
           .lock-card-header {
             text-align: center;
-            padding: 1.4rem 1.2rem 1.1rem 1.2rem;
+            padding: 1.6rem 1.2rem 1.25rem 1.2rem;
             border-radius: 14px 14px 0 0;
-            background: linear-gradient(135deg, #0b1c3d 0%, #163368 60%, #1d4ed8 100%);
-            border-bottom: 3.5px solid #f59e0b;
+            background: linear-gradient(135deg, #0f172a 0%, #172136 55%, #1e293b 100%);
+            border-bottom: 2px solid rgba(197, 164, 103, 0.75);
             color: #ffffff;
             margin-top: 4rem;
           }
           .lock-card-header h2 {
-            margin: 0.35rem 0 0.2rem 0;
-            font-size: 1.7rem;
-            font-weight: 900;
-            letter-spacing: 0.08em;
+            margin: 0.25rem 0 0.35rem 0;
+            font-family: 'Montserrat', 'Plus Jakarta Sans', sans-serif !important;
+            font-size: 1.65rem;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            padding-left: 0.16em;
             color: #ffffff;
           }
           .lock-card-header p {
             margin: 0;
-            font-size: 0.85rem;
-            color: #dbeafe;
+            font-size: 0.84rem;
+            color: #94a3b8;
           }
         </style>
         """,
@@ -1351,8 +1416,8 @@ def render_password_lock_screen(expected_password: str) -> None:
         st.markdown(
             """
             <div class="lock-card-header">
-              <div style="font-size: 2rem;">🔐</div>
-              <h2>통합계약서</h2>
+              <h2>REALTY FLOW</h2>
+              <div style="width:44px;height:1.5px;margin:0.35rem auto 0.45rem auto;background:linear-gradient(90deg,transparent,#c5a467,transparent);"></div>
               <p>인가된 사용자만 접속할 수 있습니다.</p>
             </div>
             """,
@@ -2891,19 +2956,11 @@ def main() -> None:
     )
 
     st.markdown(
-        f"""
+        """
         <div class="app-header-bar">
-          <div class="app-header-left">
-            <div class="app-header-icon">📑</div>
-            <div>
-              <h1 class="app-header-title">통합계약서</h1>
-              <p class="app-header-sub">요양시설 · 아파트·주택 · 상가 · 농지·토지 전문 계약서 작성기</p>
-            </div>
-          </div>
-          <div class="app-header-pill" style="border-color:{theme['badge_bg']};">
-            <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:{theme['primary']};border:2px solid #fff;"></span>
-            <span>{active_type_label}</span>
-          </div>
+          <h1 class="app-header-title">REALTY FLOW</h1>
+          <div class="app-header-divider"></div>
+          <p class="app-header-sub">요양시설 · 아파트 · 주택 · 상가 · 농지 · 토지 전문 계약 플랫폼</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -3040,14 +3097,15 @@ def main() -> None:
 
     with col_form, st.container(key="form_pane"):
         # 0. 최상단: 증빙서류 촬영·갤러리 업로드 보관 및 AI 자동 채우기
-        render_attachments_and_ai_panel(
-            contract_id=current_cid,
-            contract_type=selected_type,
-            type_cfg=type_cfg,
-            live_form=live_form,
-            p1_role=p1_role,
-            p2_role=p2_role,
-        )
+        with st.container(key="sec_ai_att"):
+            render_attachments_and_ai_panel(
+                contract_id=current_cid,
+                contract_type=selected_type,
+                type_cfg=type_cfg,
+                live_form=live_form,
+                p1_role=p1_role,
+                p2_role=p2_role,
+            )
 
         # ① 대상 부동산 / 토지 / 농지 / 아파트 / 상가 / 시설 / 점포의 표시
         sec1_label_map = {
@@ -3271,7 +3329,7 @@ def main() -> None:
                     )
 
         # ② 계약내용 및 금액
-        with st.expander(f"② 계약내용 및 {amt_name}", expanded=True):
+        with st.container(key="sec_pay"), st.expander(f"② 계약내용 및 {amt_name}", expanded=True):
             a1, a2 = st.columns(2)
             with a1:
                 deposit_val = st.number_input(
@@ -3522,7 +3580,7 @@ def main() -> None:
                 live_form["handover_date"] = st.date_input(handover_lbl, key=_wkey("handover_date"))
 
         # ③ 전문가용 정밀 특약사항 시스템
-        with st.expander("③ 정밀 특약사항 · AI 법률 특약 생성기", expanded=not blank_form_mode):
+        with st.container(key="sec_clause"), st.expander("③ 정밀 특약사항 · AI 법률 특약 생성기", expanded=not blank_form_mode):
             if blank_form_mode:
                 st.info(
                     "📄 현재 **[빈 양식 모드]**가 켜져 있어 특약사항이 깨끗한 수기용 빈칸으로 출력됩니다."
@@ -3539,7 +3597,7 @@ def main() -> None:
                 rendered_clauses = render_clause_selector(selected_type, type_cfg, live_form)
 
         # ④ 당사자 인적사항 (AI로 당사자 정보 추출 시 자동 펼침)
-        with st.expander(
+        with st.container(key="sec_party"), st.expander(
             f"④ 당사자 인적사항 ({p1_role} / {p2_role})",
             expanded=bool(st.session_state.get("_expand_party_section", False)),
         ):
@@ -3579,7 +3637,7 @@ def main() -> None:
                 live_form["lessee_phone2"] = st.text_input(f"{p2_role} 전화2", key=_wkey("lessee_phone2"))
 
         # ⑤ 개업공인중개사 정보
-        with st.expander("⑤ 개업공인중개사 정보 (공동중개 지원)", expanded=False):
+        with st.container(key="sec_broker"), st.expander("⑤ 개업공인중개사 정보 (공동중개 지원)", expanded=False):
             st.markdown("**주 개업공인중개사 (좌측란)**")
             b1, b2 = st.columns(2)
             with b1:
