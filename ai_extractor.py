@@ -35,9 +35,15 @@ PREFERRED_OCR_MODELS = [
     "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-2.5-flash-lite",
-    "gemini-3.8-flash",
+    "gemini-3.1-pro-preview",
     "gemini-flash-latest",
-    "gemini-2.5-pro",
+]
+PREFERRED_LEGAL_CLAUSE_MODELS = [
+    "gemini-3.1-pro-preview",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
 ]
 DEFAULT_FALLBACK_MODELS = PREFERRED_OCR_MODELS[1:]
 _EXCLUDED_MODEL_KEYWORDS = (
@@ -684,6 +690,20 @@ class GeneratedLegalClauses(BaseModel):
     )
 
 
+_LEGAL_CLAUSE_SYSTEM_INSTRUCTION = """당신은 대한민국 부동산 거래 및 노인장기요양기관(요양원·주야간보호센터·방문요양 재가센터) 양도·양수 계약 분쟁을 전담하는 15년 차 전문 변호사입니다.
+사용자가 구어체로 짧게 적은 현장 합의 메모를 법원에서 집행력과 명확성이 인정되는 정식 계약서 특약사항 조항(1~2개 항)으로 변환하여 JSON으로만 반환합니다.
+
+[필수 작성 원칙]
+1. 당사자 호칭 엄수: 반드시 지정된 당사자 호칭(예: 양도인/양수인, 매도인/매수인, 임대인/임차인)만 정확하고 일관되게 사용하며, 구어체나 불명확한 지칭('상대방', '파는 사람' 등)을 배제합니다.
+2. 법적 강제력 및 빈틈없는 구조화:
+   - 추상적·선언적 표현('최대한 협조한다', '잘 처리한다')을 쓰지 않고, 의무 주체·금지/이행 행위의 구체적 범위·적용 기간·이행 또는 지급 기한을 빠짐없이 명시합니다.
+   - 경업금지·수급자(어르신) 또는 종사자 유인·이탈 금지 조항인 경우: 직접 행위뿐 아니라 친인척·임직원·제3자 명의 우회 및 직·간접적 유인·알선·소개·전원 권유 행위까지 모두 위반 범위에 포함합니다.
+   - 배상금·위약금이 포함된 경우: 「민법 제398조에 따른 손해배상액의 예정」 성격을 명확히 기재하고, 지급 기한(예: 위반 사실 확인 또는 서면 통지일로부터 7일 이내 현금 일시 지급)과 예정액을 초과하는 실손해에 대한 별도 손해배상 청구권 및 계약 해제·원상회복 청구권 유보를 함께 구조화합니다.
+   - 하자·시설·세금·인허가·행정처분(현지조사·부당청구 환수 포함) 조항인 경우: 기준일('{잔금일}' 또는 인도일), 비용 부담 주체, 불이행·불허가 시 계약 해제 및 계약금 반환·정산 절차를 명문화합니다.
+3. 스마트 변수 활용: 날짜나 대금이 문맥상 연동되어야 하면 '{잔금일}', '{계약일}', '{인도일}', '{매매대금}', '{보증금}' 같은 중괄호 스마트 변수를 자연스럽게 활용하되, 사용자가 명시한 구체적 금액·기간·인원·지역 숫자는 절대 임의로 변경하지 않습니다.
+4. 서식 순수성: 인사말, 해설, 마크다운 기호, 번호 접두어('1.', '①', '-')를 일절 넣지 말고, 계약서 특약란에 즉시 인쇄 가능한 깔끔한 완성 법률 문장 1~2개만 JSON 배열 `clauses`에 담아 반환합니다."""
+
+
 def generate_legal_clauses_from_text(
     user_note: str,
     contract_type_label: str,
@@ -692,7 +712,7 @@ def generate_legal_clauses_from_text(
     party2_label: str = "매수인",
     timeout_seconds: int = DEFAULT_API_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
-    """사용자가 구어체로 입력한 현장 합의 내용을 Gemini API(다중 모델 자동 우회·재시도)로 정식 법률 특약 1~2개로 변환한다."""
+    """사용자가 구어체로 입력한 현장 합의 내용을 Gemini 3.1 Pro(실패 시 2.5 Flash 등 자동 우회·60초 타임아웃)로 전문 변호사 수준 특약 1~2개로 변환한다."""
     note = (user_note or "").strip()
     if not note:
         return {"ok": False, "clauses": [], "message": "변환할 현장 합의 내용을 먼저 입력해 주세요."}
@@ -710,15 +730,10 @@ def generate_legal_clauses_from_text(
         return {"ok": False, "clauses": [], "message": f"`google-genai` 패키지가 설치되어 있지 않습니다: {exc}"}
 
     prompt = (
-        f"당신은 대한민국 부동산·요양시설 전문 변호사 겸 베테랑 공인중개사입니다.\n"
-        f"현재 작성 중인 계약서 유형은 [{contract_type_label}]이며 당사자는 '{party1_label}'과 '{party2_label}'입니다.\n"
-        f"아래 사용자의 구어체 현장 합의 메모를 법적 분쟁 예방에 효과적이고 명확한 계약서 정식 특약사항 문구 1~2개로 다듬어 JSON으로 반환하세요.\n\n"
-        f"[규칙]\n"
-        f"1. 문장 앞에 '1.', '2.' 같은 번호나 불릿은 붙이지 말고 깔끔한 조항 문장만 작성하세요.\n"
-        f"2. 날짜나 금액이 언급되면 가능하면 '{{잔금일}}', '{{계약일}}', '{{매매대금}}', '{{보증금}}' 같은 스마트 변수를 자연스럽게 활용하거나 사용자가 명시한 숫자를 정확히 유지하세요.\n"
-        f"3. 책임 주체({party1_label}/{party2_label}), 이행 기한, 미이행 시 처리(해제·비용 정산 등)를 간결하고 명확하게 기재하세요.\n"
-        f"4. 반드시 1개 또는 2개의 조항만 반환하세요.\n\n"
-        f"[사용자 현장 합의 메모]\n{note}"
+        f"[계약서 유형] {contract_type_label}\n"
+        f"[당사자 호칭] 갑(권리 이전/임대 측): {party1_label} / 을(취득/임차 측): {party2_label}\n\n"
+        f"[사용자 현장 합의 메모]\n{note}\n\n"
+        f"위 메모를 바탕으로 계약서 특약란에 바로 기재할 수 있는 전문 변호사 수준의 정식 법률 특약 조항 1~2개를 JSON으로 작성하세요."
     )
 
     def _call_clause_model(model_name: str, limit_sec: float) -> Any:
@@ -731,8 +746,9 @@ def generate_legal_clauses_from_text(
             model=model_name,
             contents=prompt,
             config=types.GenerateContentConfig(
+                system_instruction=_LEGAL_CLAUSE_SYSTEM_INSTRUCTION,
                 temperature=0.2,
-                max_output_tokens=768,
+                max_output_tokens=1536,
                 response_mime_type="application/json",
                 response_schema=GeneratedLegalClauses,
                 http_options=http_opts,
@@ -747,18 +763,51 @@ def generate_legal_clauses_from_text(
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
 
+    def _discover_extra_models(exclude: set[str]) -> list[str]:
+        found: list[str] = []
+        try:
+            def _list() -> list[Any]:
+                http_opts = types.HttpOptions(timeout=8000, retry_options=types.HttpRetryOptions(attempts=1))
+                return list(genai.Client(api_key=api_key, http_options=http_opts).models.list())
+
+            for m in _run_timeout(_list, 8.0):
+                short = str(getattr(m, "name", "") or "").removeprefix("models/").strip()
+                lo = short.lower()
+                if not lo.startswith("gemini-") or any(kw in lo for kw in _EXCLUDED_MODEL_KEYWORDS):
+                    continue
+                if short not in exclude and short not in found:
+                    found.append(short)
+        except Exception:
+            pass
+        return found[:4]
+
+    candidate_queue: list[str] = list(PREFERRED_LEGAL_CLAUSE_MODELS)
+    tried: set[str] = set()
     attempt_errors: list[str] = []
+    discovered_once = False
     used_model = ""
     response = None
 
-    for idx, model_name in enumerate(PREFERRED_OCR_MODELS):
+    idx = 0
+    while idx < len(candidate_queue):
+        model_name = candidate_queue[idx]
+        idx += 1
+        if model_name in tried:
+            continue
+        tried.add(model_name)
         try:
-            response = _run_timeout(lambda m=model_name: _call_clause_model(m, float(timeout_seconds)), float(timeout_seconds))
+            response = _run_timeout(
+                lambda m=model_name: _call_clause_model(m, float(timeout_seconds)),
+                float(timeout_seconds),
+            )
             used_model = model_name
             break
         except FuturesTimeoutError:
-            attempt_errors.append(f"{model_name}: TIMEOUT")
-            if idx + 1 < len(PREFERRED_OCR_MODELS):
+            attempt_errors.append(f"{model_name}: TIMEOUT({timeout_seconds}s)")
+            if idx >= len(candidate_queue) and not discovered_once:
+                discovered_once = True
+                candidate_queue.extend(_discover_extra_models(tried))
+            if idx < len(candidate_queue):
                 time.sleep(RETRY_DELAY_SECONDS)
             continue
         except Exception as exc:
@@ -768,38 +817,48 @@ def generate_legal_clauses_from_text(
                 k in msg_u
                 for k in ("504", "DEADLINE", "TIMEOUT", "503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "502", "500", "404", "NOT_FOUND")
             )
-            if is_retryable and idx + 1 < len(PREFERRED_OCR_MODELS):
-                if "404" not in msg_u and "NOT_FOUND" not in msg_u:
-                    time.sleep(RETRY_DELAY_SECONDS)
-                continue
-            return {
-                "ok": False,
-                "clauses": [],
-                "message": f"AI 특약 생성 중 오류가 발생했습니다({model_name}): {type(exc).__name__}: {exc}",
-            }
+            if is_retryable:
+                if idx >= len(candidate_queue) and not discovered_once:
+                    discovered_once = True
+                    candidate_queue.extend(_discover_extra_models(tried))
+                if idx < len(candidate_queue):
+                    if "404" not in msg_u and "NOT_FOUND" not in msg_u:
+                        time.sleep(RETRY_DELAY_SECONDS)
+                    continue
+            else:
+                return {
+                    "ok": False,
+                    "clauses": [],
+                    "message": f"AI 특약 생성 중 오류가 발생했습니다({model_name}): {type(exc).__name__}: {exc}",
+                }
 
     if response is None:
         return {
             "ok": False,
             "clauses": [],
-            "message": "모든 Gemini 모델이 일시적 혼잡·시간초과로 응답하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            "message": (
+                f"시도한 모든 Gemini 모델({', '.join(tried)})이 일시적 오류·시간초과로 응답하지 못했습니다. "
+                "잠시 후 다시 시도해 주세요."
+            ),
         }
 
     try:
         parsed = _parse_json_strict(response.text or "")
         raw_list = parsed.get("clauses", [])
         cleaned = [
-            re.sub(r"^\s*\d+[\.\)]\s*", "", str(item).strip())
+            re.sub(r"^\s*(?:제\s*\d+\s*항|[\d①-⑩]+[\.\)]|[-•*])\s*", "", str(item).strip())
             for item in raw_list
             if str(item).strip()
         ][:2]
         if not cleaned:
             return {"ok": False, "clauses": [], "message": "AI가 유효한 특약 문구를 생성하지 못했습니다. 내용을 조금 더 구체적으로 입력해 주세요."}
+        primary_model = PREFERRED_LEGAL_CLAUSE_MODELS[0]
+        model_note = f"{primary_model} → {used_model} 자동 전환" if used_model != primary_model else used_model
         return {
             "ok": True,
             "clauses": cleaned,
             "used_model": used_model,
-            "message": f"✨ AI가 {len(cleaned)}개의 정식 법률 특약을 생성해 추가했습니다. [{used_model}]",
+            "message": f"✨ AI 전문 변호사 특약 {len(cleaned)}개 항이 생성·추가되었습니다. [{model_note}]",
         }
     except Exception as exc:
         return {"ok": False, "clauses": [], "message": f"AI 응답 파싱 실패: {type(exc).__name__}: {exc}"}
