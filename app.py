@@ -2796,19 +2796,31 @@ def main() -> None:
                     and format_price_per_pyeong(deposit_val, live_form.get("land_area"))
                     else ""
                 )
-                st.markdown(
-                    f'<div class="kr-amount-hint">금 {number_to_korean(deposit_val, "영")}원정 ({format_won(deposit_val)}{py_unit_hint})</div>',
-                    unsafe_allow_html=True,
-                )
+                if deposit_val > 0:
+                    st.markdown(
+                        f'<div class="kr-amount-hint">금 {number_to_korean(deposit_val)}원정 ({format_won(deposit_val)}{py_unit_hint})</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<div class="kr-amount-hint" style="color:#64748b;">미입력 (출력 시 수기용 빈칸)</div>',
+                        unsafe_allow_html=True,
+                    )
             with a2:
                 down_val = st.number_input(
                     "계약금(원)", min_value=0, step=1_000_000, key=_wkey("down_payment")
                 )
                 live_form["down_payment"] = down_val
-                st.markdown(
-                    f'<div class="kr-amount-hint">금 {number_to_korean(down_val, "영")}원정</div>',
-                    unsafe_allow_html=True,
-                )
+                if down_val > 0:
+                    st.markdown(
+                        f'<div class="kr-amount-hint">금 {number_to_korean(down_val)}원정</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<div class="kr-amount-hint" style="color:#64748b;">미입력 (출력 시 수기용 빈칸)</div>',
+                        unsafe_allow_html=True,
+                    )
 
             loan_val = 0
             lease_dep_val = 0
@@ -2911,10 +2923,21 @@ def main() -> None:
                         "잔금(원) [수동입력]", step=1_000_000, key=_wkey("balance")
                     )
                 live_form["balance"] = balance_val
-                st.markdown(
-                    f'<div class="kr-amount-hint">금 {number_to_korean(balance_val, "영")}원정</div>',
-                    unsafe_allow_html=True,
-                )
+                if balance_val > 0:
+                    st.markdown(
+                        f'<div class="kr-amount-hint">금 {number_to_korean(balance_val)}원정</div>',
+                        unsafe_allow_html=True,
+                    )
+                elif balance_val < 0:
+                    st.markdown(
+                        f'<div class="kr-amount-hint" style="color:#b91c1c;">잔금 음수 ({balance_val:,}원)</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<div class="kr-amount-hint" style="color:#64748b;">미입력 (출력 시 수기용 빈칸)</div>',
+                        unsafe_allow_html=True,
+                    )
 
             if selected_type in ("housing_wolse", "commercial_lease"):
                 st.markdown("---")
@@ -3114,10 +3137,18 @@ def main() -> None:
     # ==================== 우측 실시간 A4 미리보기 및 출력 제어 ====================
     with col_preview, st.container(key="preview_pane"):
         with st.container(key="preview_actions_box"):
-            if is_valid:
+            is_blank_amounts = (
+                context["deposit"] == 0
+                and context["down_payment"] == 0
+                and context["interim_payment"] == 0
+                and context["balance"] == 0
+            )
+            if is_blank_amounts:
+                st.info("📝 빈 양식(수기 작성용) 상태입니다. 아무것도 입력하지 않아도 바로 인쇄·다운로드할 수 있습니다.")
+            elif is_valid:
                 st.success(f"✅ {context['validation_msg']}")
             else:
-                st.error(f"🚨 {context['validation_msg']} — 금액을 입력·일치시켜야 다운로드가 활성화됩니다.")
+                st.warning(f"⚠️ {context['validation_msg']} (참고용 안내 — 이 상태에서도 인쇄·다운로드 가능)")
 
             est_lines = context["estimated_clause_lines"]
             mode_badge = "🎨 컬러 인쇄용" if color_mode == "color" else "🖨️ 흑백 인쇄용"
@@ -3131,7 +3162,7 @@ def main() -> None:
                     f"{mode_badge} · 📏 특약 본문 분량: **{est_lines} / {MAX_INLINE_CLAUSE_LINES}줄** (A4 1장 내 출력)"
                 )
 
-            date_tag = str(live_form.get("contract_date", date.today())).replace("-", "")
+            date_tag = str(live_form.get("contract_date") or date.today()).replace("-", "")
             color_tag = "_컬러" if color_mode == "color" else "_흑백"
             draft_tag = "_초안" if draft_mode else ""
             base_filename = f"{type_cfg['label'].replace(' ', '_')}_계약서_{date_tag}{color_tag}{draft_tag}"
@@ -3139,59 +3170,51 @@ def main() -> None:
             printable_html = render_html(context, include_print_toolbar=True)
             has_user_hwpx = has_custom_hwpx_template(selected_type)
 
+            # 모든 인쇄·다운로드 버튼 상시 활성화 (빈 양식·미저장 상태에서도 즉시 출력 가능)
             dl_cols = st.columns(3 if has_user_hwpx else 2)
 
             with dl_cols[0]:
-                if is_valid:
-                    pdf_bytes, pdf_msg = generate_pdf(context)
-                    if pdf_bytes is not None:
-                        st.download_button(
-                            "📄 PDF 다운로드 (A4)",
-                            data=pdf_bytes,
-                            file_name=f"{base_filename}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True,
-                            type="primary",
-                        )
-                    else:
-                        st.download_button(
-                            "🖨️ PDF 인쇄용 HTML (A4 100%)",
-                            data=printable_html.encode("utf-8"),
-                            file_name=f"{base_filename}_인쇄용.html",
-                            mime="text/html",
-                            use_container_width=True,
-                            type="primary",
-                            help=pdf_msg,
-                        )
-                else:
-                    st.button("🖨️ PDF 인쇄용 HTML (A4 100%)", disabled=True, use_container_width=True)
-
-            with dl_cols[1]:
-                if is_valid:
-                    docx_bytes = generate_docx(context)
+                pdf_bytes, pdf_msg = generate_pdf(context)
+                if pdf_bytes is not None:
                     st.download_button(
-                        "📝 Word (.docx · 한글에서도 열림)",
-                        data=docx_bytes,
-                        file_name=f"{base_filename}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "📄 PDF 다운로드 (A4)",
+                        data=pdf_bytes,
+                        file_name=f"{base_filename}.pdf",
+                        mime="application/pdf",
                         use_container_width=True,
+                        type="primary",
                     )
                 else:
-                    st.button("📝 Word (.docx · 한글에서도 열림)", disabled=True, use_container_width=True)
+                    st.download_button(
+                        "🖨️ PDF 인쇄용 HTML (A4 100%)",
+                        data=printable_html.encode("utf-8"),
+                        file_name=f"{base_filename}_인쇄용.html",
+                        mime="text/html",
+                        use_container_width=True,
+                        type="primary",
+                        help=pdf_msg,
+                    )
+
+            with dl_cols[1]:
+                docx_bytes = generate_docx(context)
+                st.download_button(
+                    "📝 Word (.docx · 한글에서도 열림)",
+                    data=docx_bytes,
+                    file_name=f"{base_filename}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                )
 
             if has_user_hwpx:
                 with dl_cols[2]:
-                    if is_valid:
-                        hwpx_bytes = generate_hwpx(context)
-                        st.download_button(
-                            "📘 사용자 한글 (.hwpx)",
-                            data=hwpx_bytes,
-                            file_name=f"{base_filename}.hwpx",
-                            mime="application/hwp+zip",
-                            use_container_width=True,
-                        )
-                    else:
-                        st.button("📘 사용자 한글 (.hwpx)", disabled=True, use_container_width=True)
+                    hwpx_bytes = generate_hwpx(context)
+                    st.download_button(
+                        "📘 사용자 한글 (.hwpx)",
+                        data=hwpx_bytes,
+                        file_name=f"{base_filename}.hwpx",
+                        mime="application/hwp+zip",
+                        use_container_width=True,
+                    )
 
             hwpx_panel_title = (
                 f"📘 사용자 한글(.hwpx) 템플릿 등록됨 — {type_cfg['label']} 전용 .hwpx 활성화"
