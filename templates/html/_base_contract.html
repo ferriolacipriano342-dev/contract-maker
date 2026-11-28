@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ form_title }}</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800&display=swap" />
   <style>
     @page {
       size: A4 portrait;
@@ -20,8 +22,8 @@
       margin: 0;
       padding: 0;
       background: #e9edf2;
-      font-family: 'Malgun Gothic', '맑은 고딕', 'NanumGothic', 'Nanum Gothic', 'Noto Sans CJK KR', 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
-      color: #111;
+      font-family: 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', 'NanumGothic', 'Nanum Gothic', 'Apple SD Gothic Neo', sans-serif;
+      color: #0f172a;
       font-size: 8.3pt;
       line-height: 1.34;
       overflow-x: hidden;
@@ -111,13 +113,25 @@
       position: relative;
       width: 100%;
       min-height: 277mm;
-      border-top: 1.6pt solid #000000;
-      border-right: 1.6pt solid #000000;
-      border-bottom: 1.6pt solid #000000;
-      border-left: 1.6pt solid #000000;
+      border: 1.2pt solid var(--doc-primary, #1e3a5f);
+      border-radius: 3px;
       display: flex;
       flex-direction: column;
-      background: #fff;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .doc-top-bar {
+      width: 100%;
+      height: 5.5px;
+      background: linear-gradient(
+        90deg,
+        var(--doc-primary, #1e3a5f) 0%,
+        var(--doc-primary, #1e3a5f) 76%,
+        var(--doc-accent, #b48a3e) 76%,
+        var(--doc-accent, #b48a3e) 100%
+      );
+      flex-shrink: 0;
     }
 
     .watermark {
@@ -127,8 +141,8 @@
       transform: translate(-50%, -50%) rotate(-32deg);
       font-size: 27pt;
       font-weight: 800;
-      color: rgba(220, 38, 38, 0.15);
-      border: 3px solid rgba(220, 38, 38, 0.18);
+      color: rgba(220, 38, 38, 0.14);
+      border: 3px solid rgba(220, 38, 38, 0.17);
       padding: 10px 22px;
       letter-spacing: 2px;
       white-space: nowrap;
@@ -138,54 +152,190 @@
     }
 
     .header-box {
-      padding: 5px 10px 3px 10px;
-      text-align: center;
+      padding: 6px 10px 4px 10px;
+      background: #ffffff;
     }
 
-    .title-arch {
+    .modern-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1.2pt solid #cbd5e1;
       position: relative;
-      display: inline-block;
-      width: 84%;
-      padding: 5px 18px;
-      border-top: 1.5pt solid #000000;
-      border-bottom: 1.5pt solid #000000;
-      border-radius: 50% / 14px;
-      font-size: 17.5pt;
-      font-weight: 900;
-      letter-spacing: 4px;
-      color: #000000;
+    }
+
+    .modern-header-row::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -1.2pt;
+      width: 100%;
+      height: 1.8pt;
+      background: linear-gradient(
+        90deg,
+        var(--doc-primary, #1e3a5f) 0%,
+        var(--doc-primary, #1e3a5f) 32%,
+        var(--doc-accent, #b48a3e) 50%,
+        var(--doc-primary, #1e3a5f) 68%,
+        var(--doc-primary, #1e3a5f) 100%
+      );
+    }
+
+    .header-emblem-block {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      text-align: left;
+    }
+
+    .emblem-svg {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .emblem-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.12;
+      white-space: nowrap;
+    }
+
+    .emblem-tag {
+      font-size: 5.4pt;
+      font-weight: 800;
+      letter-spacing: 0.35px;
+      color: var(--doc-accent, #b48a3e);
+      text-transform: uppercase;
+    }
+
+    .emblem-cat {
+      font-size: 6.4pt;
+      font-weight: 700;
+      color: var(--doc-primary, #1e3a5f);
+    }
+
+    .title-modern-wrap {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+
+    .title-modern {
+      font-family: 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', sans-serif;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      padding-left: 0.16em;
+      color: #0f172a;
+      line-height: 1.18;
+      white-space: nowrap;
+    }
+
+    .title-modern.title-long {
+      font-size: 20px;
+      letter-spacing: 0.12em;
+      padding-left: 0.12em;
+    }
+
+    .title-accent-line {
+      margin-top: 3px;
+      width: 58%;
+      max-width: 240px;
+      height: 2px;
+      border-radius: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        #0f172a 18%,
+        var(--doc-accent, #b48a3e) 50%,
+        #0f172a 82%,
+        transparent 100%
+      );
+    }
+
+    .doc-cert-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2.5px 5px;
+      border: 0.75pt solid #cbd5e1;
+      border-radius: 4px;
+      background: #f8fafc;
+      flex-shrink: 0;
+      justify-content: flex-end;
+    }
+
+    .doc-cert-text {
+      display: flex;
+      flex-direction: column;
+      text-align: right;
+      line-height: 1.14;
+      white-space: nowrap;
+    }
+
+    .doc-cert-label {
+      font-size: 5.3pt;
+      font-weight: 800;
+      color: var(--doc-primary, #1e3a5f);
+      letter-spacing: 0.3px;
+    }
+
+    .doc-cert-id {
+      font-size: 6.0pt;
+      font-weight: 700;
+      color: #334155;
+      font-family: Consolas, 'Courier New', monospace;
+    }
+
+    .doc-qr-svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
     }
 
     .intro-line {
-      margin: 4px 0 2px 0;
+      margin: 4px 0 1px 0;
       text-align: left;
       font-size: 7.4pt;
-      padding: 0 6px;
+      color: #334155;
+      padding: 0 4px;
     }
 
     .section-title {
       font-size: 8.3pt;
       font-weight: 800;
-      padding: 2px 6px;
-      background: #f2f2f2;
-      color: #000000;
-      border-top: 0.8pt solid #000000;
+      padding: 3px 8px;
+      background: var(--doc-tint, #edf2f8);
+      color: var(--doc-primary, #1e3a5f);
+      border-top: 0.9pt solid #cbd5e1;
+      border-left: 3.5px solid var(--doc-primary, #1e3a5f);
+      letter-spacing: 0.3px;
     }
 
     table.contract-table {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      border-top: 1pt solid #000000;
-      border-bottom: 1pt solid #000000;
+      border-top: 0.9pt solid var(--doc-primary, #1e3a5f);
+      border-bottom: 0.9pt solid var(--doc-primary, #1e3a5f);
     }
 
     table.contract-table th,
     table.contract-table td {
-      border: 0.75pt solid #000000;
-      padding: 2px 5px;
+      border: 0.65pt solid #cbd5e1;
+      padding: 2.5px 6px;
       vertical-align: middle;
-      font-size: 7.7pt;
+      font-size: 7.75pt;
+      color: #0f172a;
       word-break: break-all;
     }
 
@@ -193,20 +343,20 @@
     table.contract-table tr > :last-child { border-right: none; }
 
     .lbl {
-      background: #f2f2f2;
+      background: #f8fafc;
       text-align: center;
       font-weight: 700;
-      color: #000000;
+      color: #1e293b;
     }
 
     .lbl-tight {
-      background: #f2f2f2;
+      background: #f8fafc;
       text-align: center;
       font-weight: 700;
       font-size: 7.0pt !important;
-      line-height: 1.12;
-      padding: 2px 2px !important;
-      color: #000000;
+      line-height: 1.15;
+      padding: 2px 3px !important;
+      color: #1e293b;
     }
 
     .val-left { text-align: left; }
@@ -214,87 +364,104 @@
     .val-center { text-align: center; }
     .val-bold { font-weight: 700; }
 
-    /* 공인중개사협회 스타일 주요사항 큰 글씨 강조 (+1.5pt ~ +2.3pt Bold) */
+    /* 모던 디지털 서식 주요사항 강조 */
     .emph-addr {
-      font-size: 9.6pt !important;
+      font-size: 9.5pt !important;
       font-weight: 800 !important;
-      color: #000000;
+      color: #0f172a;
       letter-spacing: 0.1px;
     }
 
     .emph-money {
       font-size: 9.6pt !important;
       font-weight: 800 !important;
-      color: #000000;
+      color: var(--doc-primary, #1e3a5f);
+      background: var(--doc-money-bg, #f8fafc);
     }
 
     .emph-date {
-      font-size: 9.2pt !important;
+      font-size: 9.1pt !important;
       font-weight: 800 !important;
-      color: #000000;
+      color: #991b1b;
     }
 
-    .date-y { display: inline-block; min-width: 32px; text-align: center; }
+    .date-y { display: inline-block; min-width: 34px; text-align: center; }
     .date-md { display: inline-block; min-width: 18px; text-align: center; }
 
     .article-intro {
-      padding: 2px 6px;
+      padding: 2.5px 8px;
       font-size: 7.5pt;
+      color: #1e293b;
     }
 
-    .article-intro strong { margin-right: 6px; }
+    .article-intro strong {
+      margin-right: 6px;
+      color: var(--doc-primary, #1e3a5f);
+    }
 
     .sub-note {
-      padding: 2px 8px;
+      padding: 2.5px 8px;
       font-size: 7.25pt;
-      border-bottom: 0.5pt solid #666;
+      color: #475569;
+      border-bottom: 0.6pt solid #cbd5e1;
+      background: #fcfdff;
     }
 
     .articles-box {
-      padding: 3.5px 7px;
+      padding: 4px 8px;
       font-size: 7.1pt;
-      line-height: 1.32;
-      border-bottom: 0.8pt solid #000000;
+      line-height: 1.34;
+      color: #1e293b;
+      border-bottom: 0.9pt solid #cbd5e1;
     }
 
     .article-item {
-      margin-bottom: 1.8px;
+      margin-bottom: 2px;
       text-align: justify;
     }
 
     .article-item:last-child { margin-bottom: 0; }
-    .article-item strong { font-weight: 700; }
+    .article-item strong {
+      font-weight: 700;
+      color: #0f172a;
+    }
 
     .special-box {
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 4px 8px 3px 8px;
-      min-height: 28mm;
+      padding: 5px 9px 4px 9px;
+      min-height: 29mm;
     }
 
     .special-heading {
       font-size: 8.3pt;
       font-weight: 800;
+      color: var(--doc-primary, #1e3a5f);
       margin-bottom: 3px;
+      padding-bottom: 2px;
+      border-bottom: 0.75pt solid #e2e8f0;
     }
 
     .special-content {
       font-size: 7.9pt;
-      line-height: 1.42;
+      line-height: 1.44;
+      color: #0f172a;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
     .annex-notice {
-      margin-top: 6px;
-      padding: 8px 10px;
-      border: 1pt dashed #444;
-      background: #f8fafc;
-      font-weight: 700;
+      margin-top: 8px;
+      padding: 9px 12px;
+      border: 1pt dashed var(--doc-primary, #1e3a5f);
+      border-radius: 5px;
+      background: var(--doc-tint, #f8fafc);
+      color: var(--doc-primary, #1e3a5f);
+      font-weight: 800;
       text-align: center;
-      font-size: 8.8pt;
+      font-size: 9.0pt;
     }
 
     .closing-block {
@@ -305,6 +472,7 @@
 
     .closing-text {
       font-size: 7.15pt;
+      color: #334155;
       margin-bottom: 2px;
     }
 
@@ -312,6 +480,7 @@
       font-size: 9.5pt;
       font-weight: 800;
       letter-spacing: 1px;
+      color: var(--doc-primary, #1e3a5f);
       margin-bottom: 2px;
     }
 
@@ -319,13 +488,14 @@
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      border-top: 1.2pt solid #000000;
+      border-top: 1.1pt solid var(--doc-primary, #1e3a5f);
     }
 
     table.party-table td {
-      border: 0.75pt solid #000000;
+      border: 0.65pt solid #cbd5e1;
       padding: 3.5px 5px;
       font-size: 8.1pt;
+      color: #0f172a;
       vertical-align: middle;
       height: 24px;
       word-break: break-all;
@@ -336,13 +506,13 @@
     table.party-table tr:last-child td { border-bottom: none; }
 
     .v-lbl {
-      background: #f2f2f2;
+      background: #f8fafc;
       text-align: center;
       font-weight: 700;
       font-size: 7.8pt !important;
       line-height: 1.28;
       padding: 2px 1px !important;
-      color: #000000;
+      color: var(--doc-primary, #1e3a5f);
     }
 
     .seal-cell {
@@ -353,81 +523,58 @@
     }
 
     .seal-mark {
-      color: #000000;
+      color: #b91c1c;
       font-size: 7.8pt;
       font-weight: 700;
       flex-shrink: 0;
       margin-left: 4px;
     }
 
-    /* ==================== 🎨 컬러 인쇄용 테마 (공인중개사협회 스타일) ==================== */
-    body.mode-color .outer-frame {
-      border-color: #1b365d;
+    /* ==================== 🖨️ 흑백 인쇄용 테마 (깔끔한 그레이스케일 자동 전환) ==================== */
+    body.mode-bw {
+      --doc-primary: #111827 !important;
+      --doc-accent: #4b5563 !important;
+      --doc-tint: #f3f4f6 !important;
+      --doc-money-bg: #f9fafb !important;
     }
-    body.mode-color .title-arch {
-      color: #1b365d;
-      border-top-color: #1b365d;
-      border-bottom-color: #1b365d;
-      background: #f0f5fc;
-    }
-    body.mode-color .section-title {
-      background: #eaf1fb;
-      color: #1b365d;
-      border-top-color: #1b365d;
-      border-left: 3.5px solid #1b365d;
-    }
-    body.mode-color table.contract-table,
-    body.mode-color table.party-table {
-      border-top-color: #1b365d;
-      border-bottom-color: #1b365d;
-    }
-    body.mode-color table.contract-table th,
-    body.mode-color table.contract-table td,
-    body.mode-color table.party-table td {
-      border-color: #64748b;
-    }
-    body.mode-color .lbl,
-    body.mode-color .lbl-tight,
-    body.mode-color .v-lbl {
-      background: #e8f0fa;
-      color: #153057;
-    }
-    body.mode-color .emph-addr {
-      color: #0f172a;
-    }
-    body.mode-color .emph-money {
-      color: #1d4ed8;
-    }
-    body.mode-color .emph-date {
-      color: #991b1b;
-    }
-    body.mode-color .special-heading {
-      color: #1b365d;
-    }
-    body.mode-color .seal-mark {
-      color: #b91c1c;
-    }
-    body.mode-color .annex-header {
-      background: #f0f5fc;
-      border-bottom-color: #1b365d;
-      color: #1b365d;
-    }
-
-    /* ==================== 🖨️ 흑백 인쇄용 테마 (레이저 프린터 최적화) ==================== */
     body.mode-bw,
     body.mode-bw * {
-      color: #000000 !important;
-      border-color: #000000 !important;
+      color: #111111 !important;
+    }
+    body.mode-bw .outer-frame,
+    body.mode-bw .modern-header-row,
+    body.mode-bw table.contract-table,
+    body.mode-bw table.party-table,
+    body.mode-bw .annex-header,
+    body.mode-bw .annex-sign-box {
+      border-color: #111111 !important;
+    }
+    body.mode-bw table.contract-table th,
+    body.mode-bw table.contract-table td,
+    body.mode-bw table.party-table td,
+    body.mode-bw .doc-cert-badge,
+    body.mode-bw .articles-box,
+    body.mode-bw .sub-note {
+      border-color: #6b7280 !important;
     }
     body.mode-bw .lbl,
     body.mode-bw .lbl-tight,
     body.mode-bw .v-lbl,
-    body.mode-bw .section-title {
-      background: #f2f2f2 !important;
-    }
-    body.mode-bw .title-arch,
+    body.mode-bw .section-title,
+    body.mode-bw .doc-cert-badge,
+    body.mode-bw .annex-notice,
     body.mode-bw .annex-header {
-      background: #ffffff !important;
+      background: #f3f4f6 !important;
+    }
+    body.mode-bw .emph-money {
+      background: #f9fafb !important;
+    }
+    body.mode-bw .doc-top-bar,
+    body.mode-bw .modern-header-row::after {
+      background: linear-gradient(90deg, #111111 0%, #111111 76%, #6b7280 76%, #6b7280 100%) !important;
+    }
+    body.mode-bw .title-accent-line {
+      background: linear-gradient(90deg, transparent 0%, #111111 20%, #6b7280 50%, #111111 80%, transparent 100%) !important;
     }
     body.mode-bw .watermark {
       color: rgba(0, 0, 0, 0.14) !important;
@@ -436,8 +583,10 @@
 
     .annex-header {
       text-align: center;
-      padding: 12px 10px 8px 10px;
-      border-bottom: 1.2pt solid #000;
+      padding: 12px 12px 8px 12px;
+      background: var(--doc-tint, #edf2f8);
+      border-bottom: 1.2pt solid var(--doc-primary, #1e3a5f);
+      color: var(--doc-primary, #1e3a5f);
     }
 
     .annex-header h2 {
@@ -521,7 +670,7 @@
     }
   </style>
 </head>
-<body class="mode-{{ color_mode|default('color') }}">
+<body class="mode-{{ color_mode|default('color') }}" style="--doc-primary: {{ doc_primary|default('#1E3A5F') }}; --doc-accent: {{ doc_accent|default('#B48A3E') }}; --doc-tint: {{ doc_tint|default('#EDF2F8') }}; --doc-money-bg: {{ doc_money_bg|default('#F8FAFC') }};">
   {% if include_print_toolbar %}
   <div class="toolbar no-print">
     <div class="toolbar-meta">
@@ -539,12 +688,61 @@
     <div class="page-scale-slot">
       <div class="a4-page">
         <div class="outer-frame">
+          <div class="doc-top-bar"></div>
           {% if draft_mode %}
           <div class="watermark">{{ watermark_text }}</div>
           {% endif %}
 
           <div class="header-box">
-            <div class="title-arch">{{ form_title }}</div>
+            {% set svg_pri = '#111111' if color_mode == 'bw' else doc_primary|default('#1E3A5F') %}
+            {% set svg_acc = '#6b7280' if color_mode == 'bw' else doc_accent|default('#B48A3E') %}
+            <div class="modern-header-row">
+              <div class="header-emblem-block">
+                <svg class="emblem-svg" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <rect x="2" y="2" width="32" height="32" rx="7" fill="{{ svg_pri }}" />
+                  <rect x="3.5" y="3.5" width="29" height="29" rx="5.5" stroke="{{ svg_acc }}" stroke-width="1.4" />
+                  <path d="M11 10.5H20.5L25 15V25.5H11V10.5Z" fill="#FFFFFF" />
+                  <path d="M20.5 10.5V15H25" stroke="{{ svg_pri }}" stroke-width="1.2" />
+                  <line x1="13.5" y1="18" x2="22.5" y2="18" stroke="{{ svg_pri }}" stroke-width="1.3" stroke-linecap="round" />
+                  <line x1="13.5" y1="21.5" x2="20" y2="21.5" stroke="{{ svg_acc }}" stroke-width="1.3" stroke-linecap="round" />
+                </svg>
+                <div class="emblem-meta">
+                  <span class="emblem-tag">DIGITAL CONTRACT</span>
+                  <span class="emblem-cat">{{ doc_category|default('표준 계약서') }}</span>
+                </div>
+              </div>
+
+              <div class="title-modern-wrap">
+                <div class="title-modern{% if form_title|length > 12 %} title-long{% endif %}">{{ form_title }}</div>
+                <div class="title-accent-line"></div>
+              </div>
+
+              <div class="doc-cert-badge">
+                <div class="doc-cert-text">
+                  <span class="doc-cert-label">VERIFIED FORM</span>
+                  <span class="doc-cert-id">{{ doc_id|default('DOC-STANDARD') }}</span>
+                </div>
+                <svg class="doc-qr-svg" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <rect x="1" y="1" width="26" height="26" rx="2.5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1" />
+                  <rect x="4" y="4" width="7" height="7" rx="1" stroke="{{ svg_pri }}" stroke-width="1.6" />
+                  <rect x="6.2" y="6.2" width="2.6" height="2.6" fill="{{ svg_pri }}" />
+                  <rect x="17" y="4" width="7" height="7" rx="1" stroke="{{ svg_pri }}" stroke-width="1.6" />
+                  <rect x="19.2" y="6.2" width="2.6" height="2.6" fill="{{ svg_acc }}" />
+                  <rect x="4" y="17" width="7" height="7" rx="1" stroke="{{ svg_pri }}" stroke-width="1.6" />
+                  <rect x="6.2" y="19.2" width="2.6" height="2.6" fill="{{ svg_pri }}" />
+                  <rect x="13" y="4" width="2" height="4" fill="{{ svg_pri }}" />
+                  <rect x="13" y="10" width="2" height="5" fill="{{ svg_acc }}" />
+                  <rect x="4" y="13" width="5" height="2" fill="{{ svg_pri }}" />
+                  <rect x="11" y="13" width="6" height="2" fill="{{ svg_pri }}" />
+                  <rect x="19" y="13" width="5" height="2" fill="{{ svg_acc }}" />
+                  <rect x="13" y="17" width="3" height="3" fill="{{ svg_pri }}" />
+                  <rect x="18" y="17" width="2" height="7" fill="{{ svg_pri }}" />
+                  <rect x="22" y="17" width="2" height="4" fill="{{ svg_acc }}" />
+                  <rect x="13" y="22" width="3" height="2" fill="{{ svg_acc }}" />
+                  <rect x="22" y="22" width="2" height="2" fill="{{ svg_pri }}" />
+                </svg>
+              </div>
+            </div>
             <div class="intro-line">
               {% block intro_sentence %}{% endblock %}
             </div>
@@ -560,8 +758,8 @@
               <div class="special-heading">특약사항</div>
               {% if is_annex %}
                 <div class="annex-notice">
-                  특약사항 별지 참조<br />
-                  <span style="font-size: 7.7pt; font-weight: 500;">(특약 분량이 본문 허용 한도를 초과하여 2페이지 [별지] 특약사항에 전문을 첨부함)</span>
+                  ※ 상세 특약은 첨부 [별지] 특약사항(총 {{ clause_count }}항) 참조<br />
+                  <span style="font-size: 7.4pt; font-weight: 500; color: #475569;">(특약 항목이 본문 허용 한도를 초과하여 2페이지 [별지] 특약사항에 전문을 첨부함)</span>
                 </div>
               {% else %}
                 <div class="special-content">{{ body_clauses_text }}</div>
@@ -697,13 +895,14 @@
     <div class="page-scale-slot annex-slot">
       <div class="a4-page annex-page">
         <div class="outer-frame">
+          <div class="doc-top-bar"></div>
           {% if draft_mode %}
           <div class="watermark">{{ watermark_text }}</div>
           {% endif %}
 
           <div class="annex-header">
-            <h2>[별 지] 특 약 사 항</h2>
-            <div class="annex-sub">({{ form_title }} 부속 서류)</div>
+            <h2 style="white-space: nowrap; letter-spacing: 0.16em; font-weight: 800; color: #0f172a;">[별지] 특약사항</h2>
+            <div class="annex-sub">({{ form_title }} 부속 서류 · 총 {{ clause_count }}항 · 문서번호: {{ doc_id|default('DOC-STANDARD') }})</div>
           </div>
 
           <table class="contract-table" style="border-top: none;">

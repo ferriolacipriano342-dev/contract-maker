@@ -1,11 +1,15 @@
 {% extends "_base_contract.html" %}
 
 {% block intro_sentence %}
+{% if contract_type == 'farmland_sale' %}
+아래 농지에 대하여 매도인과 매수인은 상호 합의하에 다음과 같이 농지 매매계약을 체결한다.
+{% else %}
 아래 토지에 대하여 매도인과 매수인은 상호 합의하에 다음과 같이 토지 매매계약을 체결한다.
+{% endif %}
 {% endblock %}
 
 {% block property_section %}
-<div class="section-title">1. 토지의 표시</div>
+<div class="section-title">{% if contract_type == 'farmland_sale' %}1. 농지의 표시{% else %}1. 토지의 표시{% endif %}</div>
 <table class="contract-table">
   <colgroup>
     <col style="width: 13%;" /><col style="width: 37%;" /><col style="width: 13%;" /><col style="width: 37%;" />
@@ -30,7 +34,7 @@
   </tr>
   <tr>
     <td class="lbl-tight">매 매 대 상</td>
-    <td class="val-left val-bold">{{ lease_part if lease_part else '토지 전부' }}</td>
+    <td class="val-left val-bold">{{ lease_part if lease_part else ('' if blank_form_mode else '토지 전부') }}</td>
     <td class="lbl-tight">평당 참고단가</td>
     <td class="val-right">{{ price_per_pyeong }}</td>
   </tr>

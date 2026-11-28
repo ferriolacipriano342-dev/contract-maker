@@ -8,6 +8,11 @@
 from __future__ import annotations
 
 import io
+import os
+import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -613,7 +618,7 @@ def create_docx_template(
 
     p_ax_t = doc.add_paragraph()
     p_ax_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_ax_t = p_ax_t.add_run("[별 지] 특 약 사 항")
+    r_ax_t = p_ax_t.add_run("[별지] 특약사항")
     r_ax_t.bold = True
     r_ax_t.font.size = Pt(15)
     r_ax_t.font.color.rgb = RGBColor(*pal["title_rgb"])
@@ -700,19 +705,148 @@ def render_html(context: dict[str, Any], include_print_toolbar: bool = False) ->
     return template.render(**render_ctx)
 
 
+def _prepare_html_for_pdf_engine(html_str: str) -> str:
+    """WeasyPrint 및 헤드리스 브라우저 PDF 변환용 오프라인·한글폰트 최적화 HTML을 생성한다."""
+    # 외부 CDN 폰트 링크는 오프라인/클라우드 PDF 엔진 지연을 유발하므로 제거하고 로컬 설치 한글 폰트를 우선 사용
+    cleaned = re.sub(
+        r'<link[^>]+href=["\']https?://[^"\']+["\'][^>]*>',
+        "",
+        html_str,
+        flags=re.IGNORECASE,
+    )
+    pdf_css = """
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 9mm;
+      }
+      html, body {
+        background: #ffffff !important;
+        font-family: 'NanumGothic', 'NanumBarunGothic', 'Noto Sans CJK KR', 'Malgun Gothic', '맑은 고딕', sans-serif !important;
+        overflow: visible !important;
+      }
+      .toolbar, .no-print {
+        display: none !important;
+      }
+      .preview-wrapper {
+        display: block !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        width: 100% !important;
+      }
+      .page-scale-slot {
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+      }
+      .a4-page {
+        width: 100% !important;
+        min-height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        transform: none !important;
+        overflow: visible !important;
+      }
+      .outer-frame {
+        width: 100% !important;
+        min-height: 277mm !important;
+      }
+    </style>
+    </head>"""
+    if "</head>" in cleaned:
+        cleaned = cleaned.replace("</head>", pdf_css, 1)
+    return cleaned
+
+
+def _find_headless_browser() -> str | None:
+    """로컬 PC(Windows/macOS/Linux)에서 헤드리스 PDF 출력이 가능한 Chrome/Edge 실행 파일을 찾는다."""
+    candidates = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    for path_str in candidates:
+        if os.path.exists(path_str):
+            return path_str
+    for cmd in ("google-chrome", "chromium", "chromium-browser", "msedge"):
+        found = shutil.which(cmd)
+        if found:
+            return found
+    return None
+
+
+def _generate_pdf_via_headless_browser(pdf_html: str) -> tuple[bytes | None, str]:
+    """WeasyPrint 미설치 환경(예: Windows 로컬 PC)에서 Chrome/Edge 헤드리스로 실제 PDF를 생성한다."""
+    browser = _find_headless_browser()
+    if not browser:
+        return None, "헤드리스 브라우저(Chrome/Edge) 미설치"
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            html_path = Path(tmpdir) / "contract.html"
+            pdf_path = Path(tmpdir) / "contract.pdf"
+            profile_dir = Path(tmpdir) / "profile"
+            html_path.write_text(pdf_html, encoding="utf-8")
+
+            cmd = [
+                browser,
+                "--headless",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-software-rasterizer",
+                "--no-pdf-header-footer",
+                f"--user-data-dir={profile_dir}",
+                f"--print-to-pdf={pdf_path}",
+                html_path.resolve().as_uri(),
+            ]
+            run_kwargs: dict[str, Any] = {
+                "capture_output": True,
+                "timeout": 20,
+                "check": False,
+            }
+            if os.name == "nt":
+                run_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            subprocess.run(cmd, **run_kwargs)
+
+            if pdf_path.exists() and pdf_path.stat().st_size > 1000:
+                pdf_bytes = pdf_path.read_bytes()
+                if pdf_bytes.startswith(b"%PDF"):
+                    return pdf_bytes, "브라우저 헤드리스 PDF 생성 완료"
+            return None, "헤드리스 브라우저 PDF 파일 생성 실패"
+    except Exception as exc:
+        return None, f"헤드리스 PDF 오류({type(exc).__name__})"
+
+
 def generate_pdf(context: dict[str, Any]) -> tuple[bytes | None, str]:
+    """계약서 A4 서식을 실제 PDF(.pdf) 바이트로 변환한다 (1순위 WeasyPrint, 2순위 Edge/Chrome 헤드리스)."""
     html_str = render_html(context, include_print_toolbar=False)
+    pdf_html = _prepare_html_for_pdf_engine(html_str)
+
+    weasy_err = ""
     try:
         from weasyprint import HTML  # type: ignore
 
-        pdf_bytes = HTML(string=html_str, base_url=str(BASE_DIR)).write_pdf()
-        return pdf_bytes, "WeasyPrint PDF 생성 완료"
+        pdf_bytes = HTML(string=pdf_html, base_url=str(BASE_DIR)).write_pdf()
+        if pdf_bytes and pdf_bytes.startswith(b"%PDF"):
+            return pdf_bytes, "WeasyPrint PDF 생성 완료"
     except Exception as exc:
-        return (
-            None,
-            f"서버 PDF 엔진 미구성({type(exc).__name__}): "
-            "PDF 인쇄용 HTML을 내려받아 브라우저 인쇄(Ctrl+P → PDF로 저장)를 이용해 주세요.",
-        )
+        weasy_err = f"{type(exc).__name__}: {exc}"
+
+    browser_bytes, browser_msg = _generate_pdf_via_headless_browser(pdf_html)
+    if browser_bytes is not None:
+        return browser_bytes, browser_msg
+
+    return (
+        None,
+        f"PDF 엔진 미구성(WeasyPrint={weasy_err or '미설치'} / {browser_msg}): "
+        "PDF 인쇄용 HTML을 내려받아 브라우저 인쇄(Ctrl+P → PDF로 저장)를 이용해 주세요.",
+    )
 
 
 def generate_docx(context: dict[str, Any]) -> bytes:

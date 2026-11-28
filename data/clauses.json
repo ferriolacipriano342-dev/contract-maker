@@ -1,7 +1,246 @@
 {
+  "nursing_home_transfer": {
+    "label": "🏥 [요양시설] 요양원 양도·양수",
+    "form_title": "노인요양시설 양도·양수 계약서",
+    "template_key": "nursing_home_transfer",
+    "clauses": [
+      {
+        "id": "nh_req_01",
+        "category": "지정승계·인허가",
+        "title": "장기요양기관 지정승계 및 행정절차 협조",
+        "required": true,
+        "template": "양도인은 잔금일({잔금일})까지 관할 시·군·구청 및 국민건강보험공단의 노인의료복지시설(정원 {정원수}인) 설치신고 변경 및 장기요양기관 지정승계에 필요한 일체의 서류 제출과 행정절차에 적극 협조한다.",
+        "variables": {
+          "잔금일": {
+            "label": "잔금(양도기준일)",
+            "type": "date",
+            "bind_field": "balance_date"
+          },
+          "정원수": {
+            "label": "인가 정원(명)",
+            "type": "number",
+            "default": "29"
+          }
+        }
+      },
+      {
+        "id": "nh_req_02",
+        "category": "유보금·행정처분",
+        "title": "현지조사·부당청구 환수 대비 유보금 설정",
+        "required": true,
+        "template": "양도인은 양도기준일 이전 운영기간 중 발생한 국민건강보험공단 현지조사, 부당청구 환수처분, 과징금·영업정지 등 행정처분에 대비하여 양도대금 중 금 {유보금}원을 잔금일로부터 {유보기간}간 유보(에스크로 또는 별도 보관)하며, 동 기간 내 행정처분·환수 통보가 없을 시 즉시 양도인에게 지급한다.",
+        "variables": {
+          "유보금": {
+            "label": "유보금 금액(원)",
+            "type": "currency",
+            "default": "50000000"
+          },
+          "유보기간": {
+            "label": "유보기간",
+            "type": "text",
+            "default": "6개월"
+          }
+        }
+      },
+      {
+        "id": "nh_req_03",
+        "category": "노무·퇴직금",
+        "title": "종사자 퇴직금·연차수당 및 4대보험 정산",
+        "required": true,
+        "template": "양도기준일({잔금일}) 이전까지 발생한 전체 종사자(요양보호사, 간호사·간호조무사, 사회복지사 등)의 급여, 미사용 연차수당, 퇴직급여 충당금 및 4대보험료는 양도인이 전액 정산 완료한다.",
+        "variables": {
+          "잔금일": {
+            "label": "양도기준일(잔금일)",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "nh_req_04",
+        "category": "수급자·급여청구",
+        "title": "입소 어르신 승계 및 장기요양급여 정산",
+        "required": true,
+        "template": "양도기준일 이전 입소 수급자에 대한 본인부담금 및 공단 장기요양급여 청구권은 양도인에게 귀속되며, 양도인은 현 입소자(수급자) 보호자 안내 및 이용계약 승계에 성실히 협조한다.",
+        "variables": {}
+      },
+      {
+        "id": "nh_opt_01",
+        "category": "경업금지",
+        "title": "동종 요양시설 경업금지 약정",
+        "required": false,
+        "template": "양도인은 잔금일로부터 {경업금지기간}간 본 시설 반경 {경업금지반경} 이내에서 본인 또는 제3자 명의로 동종 노인요양시설·주간보호센터를 개설하거나 운영하지 않기로 한다.",
+        "variables": {
+          "경업금지기간": {
+            "label": "경업금지 기간",
+            "type": "text",
+            "default": "3년"
+          },
+          "경업금지반경": {
+            "label": "경업금지 반경",
+            "type": "text",
+            "default": "5km"
+          }
+        }
+      },
+      {
+        "id": "nh_opt_02",
+        "category": "시설·채무면책",
+        "title": "비품 목록 인계 및 미지급 채무 면책",
+        "required": false,
+        "template": "의료침대, 휠체어, 승합차량, 급식설비 등 별첨 비품목록 일체를 현 상태로 인계하며, 양도기준일 이전 발생한 식자재·의약품·리스 등 모든 미지급 채무는 양도인이 전액 책임지고 변제한다.",
+        "variables": {}
+      }
+    ]
+  },
+  "apartment_sale": {
+    "label": "🏢 [주거] 아파트 매매",
+    "form_title": "아파트 매매 계약서",
+    "template_key": "apartment_sale",
+    "clauses": [
+      {
+        "id": "apt_req_01",
+        "category": "기본·현황",
+        "title": "동·호수 및 대지권 현황 매매",
+        "required": true,
+        "template": "본 아파트(전유부분 동·호수 및 대지권 일체)는 현 시설물 및 등기부 현황 상태에서 매매하며, 매도인은 잔금일까지 시설물 훼손 없이 인도한다.",
+        "variables": {}
+      },
+      {
+        "id": "apt_req_02",
+        "category": "권리말소·근저당",
+        "title": "등기부상 근저당권 말소·감액 및 잔금 동시 이행",
+        "required": true,
+        "template": "등기부상 설정된 근저당권(채권최고액 금 {채권최고액}원)은 잔금일({잔금일})에 매수인의 잔금으로 동시 상환·말소(단, 승계 합의된 대출금은 제외)하기로 한다.",
+        "variables": {
+          "채권최고액": {
+            "label": "현재 채권최고액(원)",
+            "type": "currency",
+            "default": ""
+          },
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "apt_req_03",
+        "category": "관리비·정산",
+        "title": "관리비·선수관리비 및 공과금 정산",
+        "required": true,
+        "template": "잔금일({잔금일})을 기준으로 이전의 관리비 및 각종 공과금은 매도인이 정산하며, 관리사무소에 예치된 선수관리비(관리비예치금)는 매수인이 승계·정산한다.",
+        "variables": {
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "apt_opt_01",
+        "category": "하자담보책임",
+        "title": "중대 하자(누수·배관·보일러) 매도인 6개월 담보책임",
+        "required": false,
+        "template": "매도인은 계약 시 고지하지 않은 누수, 배관 파손, 보일러 고장 등 중대한 하자에 대하여 인도일로부터 6개월간 민법상 하자담보책임을 부담한다.",
+        "variables": {}
+      },
+      {
+        "id": "apt_opt_02",
+        "category": "임대차·명도",
+        "title": "기존 임차인 명도 또는 임대차 승계 특약",
+        "required": false,
+        "template": "본 아파트의 기존 임대차 관계는 {처리방식}하기로 하며, 명도 조건인 경우 매도인의 책임과 비용으로 잔금일({잔금일})까지 완전 명도한다.",
+        "variables": {
+          "처리방식": {
+            "label": "임대차 처리 방식",
+            "type": "text",
+            "default": "매도인 책임 하에 잔금일 명도"
+          },
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      }
+    ]
+  },
+  "real_estate_sale": {
+    "label": "🏠 [주거] 주택 매매",
+    "form_title": "주택 매매 계약서",
+    "template_key": "real_estate_sale",
+    "clauses": [
+      {
+        "id": "sale_req_01",
+        "category": "현황매매",
+        "title": "현 시설물 상태 매매",
+        "required": true,
+        "template": "본 부동산은 현 시설물 상태에서의 매매로 하며, 등기부등본 및 건축물대장 확인 후 체결한다.",
+        "variables": {}
+      },
+      {
+        "id": "sale_req_02",
+        "category": "권리말소",
+        "title": "잔금일 근저당권 등 제한물권 전액 말소",
+        "required": true,
+        "template": "매도인은 현재 설정된 근저당권(채권최고액 금 {채권최고액}원) 및 기타 제한물권을 잔금일({잔금일})에 매수인의 잔금으로 동시 상환·말소하기로 한다.",
+        "variables": {
+          "채권최고액": {
+            "label": "현재 채권최고액(원)",
+            "type": "currency",
+            "default": ""
+          },
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "sale_req_03",
+        "category": "정산",
+        "title": "공과금·관리비·장기수선충당금 정산",
+        "required": true,
+        "template": "잔금일({잔금일})을 기준으로 각종 공과금, 관리비 및 선수관리비는 일할 정산하여 매도인이 부담하며, 장기수선충당금은 매수인에게 승계한다.",
+        "variables": {
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "sale_opt_01",
+        "category": "하자담보",
+        "title": "중대 하자 담보책임 범위",
+        "required": false,
+        "template": "누수, 보일러 고장 등 중대한 하자에 대한 매도인의 담보책임은 민법 규정에 따라 잔금일로부터 6개월간 부담하기로 한다.",
+        "variables": {}
+      },
+      {
+        "id": "sale_opt_02",
+        "category": "임대차승계",
+        "title": "기존 임대차 보증금 승계",
+        "required": false,
+        "template": "매수인은 현 임차인의 임대차보증금 금 {승계보증금}원을 승계하며, 잔금에서 해당 금액을 공제하고 지급한다.",
+        "variables": {
+          "승계보증금": {
+            "label": "승계 보증금(원)",
+            "type": "currency",
+            "default": ""
+          }
+        }
+      }
+    ]
+  },
   "housing_jeonse": {
-    "label": "주택 전세",
-    "form_title": "아 파 트  전 세  계 약 서",
+    "label": "🏠 [주거] 주택 전세",
+    "form_title": "주택 전세 계약서",
     "template_key": "housing_jeonse",
     "clauses": [
       {
@@ -120,79 +359,9 @@
       }
     ]
   },
-  "real_estate_sale": {
-    "label": "부동산 매매",
-    "form_title": "부 동 산  매 매  계 약 서",
-    "template_key": "real_estate_sale",
-    "clauses": [
-      {
-        "id": "sale_req_01",
-        "category": "현황매매",
-        "title": "현 시설물 상태 매매",
-        "required": true,
-        "template": "본 부동산은 현 시설물 상태에서의 매매로 하며, 등기부등본 및 건축물대장 확인 후 체결한다.",
-        "variables": {}
-      },
-      {
-        "id": "sale_req_02",
-        "category": "권리말소",
-        "title": "잔금일 근저당권 등 제한물권 전액 말소",
-        "required": true,
-        "template": "매도인은 현재 설정된 근저당권(채권최고액 금 {채권최고액}원) 및 기타 제한물권을 잔금일({잔금일})에 매수인의 잔금으로 동시 상환·말소하기로 한다.",
-        "variables": {
-          "채권최고액": {
-            "label": "현재 채권최고액(원)",
-            "type": "currency",
-            "default": ""
-          },
-          "잔금일": {
-            "label": "잔금 지급일",
-            "type": "date",
-            "bind_field": "balance_date"
-          }
-        }
-      },
-      {
-        "id": "sale_req_03",
-        "category": "정산",
-        "title": "공과금·관리비·장기수선충당금 정산",
-        "required": true,
-        "template": "잔금일({잔금일})을 기준으로 각종 공과금, 관리비 및 선수관리비는 일할 정산하여 매도인이 부담하며, 장기수선충당금은 매수인에게 승계한다.",
-        "variables": {
-          "잔금일": {
-            "label": "잔금 지급일",
-            "type": "date",
-            "bind_field": "balance_date"
-          }
-        }
-      },
-      {
-        "id": "sale_opt_01",
-        "category": "하자담보",
-        "title": "중대 하자 담보책임 범위",
-        "required": false,
-        "template": "누수, 보일러 고장 등 중대한 하자에 대한 매도인의 담보책임은 민법 규정에 따라 잔금일로부터 6개월간 부담하기로 한다.",
-        "variables": {}
-      },
-      {
-        "id": "sale_opt_02",
-        "category": "임대차승계",
-        "title": "기존 임대차 보증금 승계",
-        "required": false,
-        "template": "매수인은 현 임차인의 임대차보증금 금 {승계보증금}원을 승계하며, 잔금에서 해당 금액을 공제하고 지급한다.",
-        "variables": {
-          "승계보증금": {
-            "label": "승계 보증금(원)",
-            "type": "currency",
-            "default": ""
-          }
-        }
-      }
-    ]
-  },
   "housing_wolse": {
-    "label": "주택 월세",
-    "form_title": "주 택  임 대 차 (월 세)  계 약 서",
+    "label": "🏠 [주거] 주택 월세",
+    "form_title": "주택 임대차(월세) 계약서",
     "template_key": "housing_wolse",
     "clauses": [
       {
@@ -246,9 +415,71 @@
       }
     ]
   },
+  "commercial_sale": {
+    "label": "🏪 [상가] 상가 매매",
+    "form_title": "상가건물 매매 계약서",
+    "template_key": "commercial_sale",
+    "clauses": [
+      {
+        "id": "comm_sale_req_01",
+        "category": "부가세·포괄양수도",
+        "title": "건물분 부가가치세 및 사업포괄양수도 조건",
+        "required": true,
+        "template": "본 상가 매매의 건물분 부가가치세는 {부가세처리}하기로 하며, 포괄양수도 계약인 경우 매도인과 매수인은 일반과세자 사업자등록 및 부가가치세법상 포괄양수도 절차에 적극 협조한다.",
+        "variables": {
+          "부가세처리": {
+            "label": "부가세 처리 방식",
+            "type": "text",
+            "default": "사업의 포괄양수도로 처리(별도 부가세 없음)"
+          }
+        }
+      },
+      {
+        "id": "comm_sale_req_02",
+        "category": "권리말소·근저당",
+        "title": "등기부상 근저당권 말소 및 융자 승계",
+        "required": true,
+        "template": "등기부상 설정된 근저당권(채권최고액 금 {채권최고액}원) 및 기타 제한물권은 승계 합의된 금액을 제외하고 잔금일({잔금일})에 전액 상환·말소한다.",
+        "variables": {
+          "채권최고액": {
+            "label": "현재 채권최고액(원)",
+            "type": "currency",
+            "default": ""
+          },
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "comm_sale_req_03",
+        "category": "임대차·시설승계",
+        "title": "기존 임차인 임대차계약 승계 및 관리비 정산",
+        "required": true,
+        "template": "본 상가의 기존 임대차보증금 및 임대차계약 조건은 매수인이 승계(또는 매도인 책임 명도)하며, 잔금일({잔금일}) 기준 차임·관리비·제세공과금은 일할 정산한다.",
+        "variables": {
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "comm_sale_opt_01",
+        "category": "시설·위반건축물",
+        "title": "시설물 현황 매매 및 위반건축물·업종 제한 확인",
+        "required": false,
+        "template": "매도인은 계약일 현재 본 상가에 위반건축물 등재, 이행강제금 부과 및 미납 관리비가 없음을 보증하며, 시설물(냉난방기·전기·소방 등)은 현 상태 그대로 인계한다.",
+        "variables": {}
+      }
+    ]
+  },
   "commercial_lease": {
-    "label": "상가 임대차",
-    "form_title": "상 가 건 물  임 대 차  계 약 서",
+    "label": "🏪 [상가] 상가 임대차",
+    "form_title": "상가건물 임대차 계약서",
     "template_key": "commercial_lease",
     "clauses": [
       {
@@ -305,103 +536,9 @@
       }
     ]
   },
-  "nursing_home_transfer": {
-    "label": "요양원 양도양수",
-    "form_title": "노 인 요 양 시 설  양 도 · 양 수  계 약 서",
-    "template_key": "nursing_home_transfer",
-    "clauses": [
-      {
-        "id": "nh_req_01",
-        "category": "지정승계·인허가",
-        "title": "장기요양기관 지정승계 및 행정절차 협조",
-        "required": true,
-        "template": "양도인은 잔금일({잔금일})까지 관할 시·군·구청 및 국민건강보험공단의 노인의료복지시설(정원 {정원수}인) 설치신고 변경 및 장기요양기관 지정승계에 필요한 일체의 서류 제출과 행정절차에 적극 협조한다.",
-        "variables": {
-          "잔금일": {
-            "label": "잔금(양도기준일)",
-            "type": "date",
-            "bind_field": "balance_date"
-          },
-          "정원수": {
-            "label": "인가 정원(명)",
-            "type": "number",
-            "default": "29"
-          }
-        }
-      },
-      {
-        "id": "nh_req_02",
-        "category": "유보금·행정처분",
-        "title": "현지조사·부당청구 환수 대비 유보금 설정",
-        "required": true,
-        "template": "양도인은 양도기준일 이전 운영기간 중 발생한 국민건강보험공단 현지조사, 부당청구 환수처분, 과징금·영업정지 등 행정처분에 대비하여 양도대금 중 금 {유보금}원을 잔금일로부터 {유보기간}간 유보(에스크로 또는 별도 보관)하며, 동 기간 내 행정처분·환수 통보가 없을 시 즉시 양도인에게 지급한다.",
-        "variables": {
-          "유보금": {
-            "label": "유보금 금액(원)",
-            "type": "currency",
-            "default": "50000000"
-          },
-          "유보기간": {
-            "label": "유보기간",
-            "type": "text",
-            "default": "6개월"
-          }
-        }
-      },
-      {
-        "id": "nh_req_03",
-        "category": "노무·퇴직금",
-        "title": "종사자 퇴직금·연차수당 및 4대보험 정산",
-        "required": true,
-        "template": "양도기준일({잔금일}) 이전까지 발생한 전체 종사자(요양보호사, 간호사·간호조무사, 사회복지사 등)의 급여, 미사용 연차수당, 퇴직급여 충당금 및 4대보험료는 양도인이 전액 정산 완료한다.",
-        "variables": {
-          "잔금일": {
-            "label": "양도기준일(잔금일)",
-            "type": "date",
-            "bind_field": "balance_date"
-          }
-        }
-      },
-      {
-        "id": "nh_req_04",
-        "category": "수급자·급여청구",
-        "title": "입소 어르신 승계 및 장기요양급여 정산",
-        "required": true,
-        "template": "양도기준일 이전 입소 수급자에 대한 본인부담금 및 공단 장기요양급여 청구권은 양도인에게 귀속되며, 양도인은 현 입소자(수급자) 보호자 안내 및 이용계약 승계에 성실히 협조한다.",
-        "variables": {}
-      },
-      {
-        "id": "nh_opt_01",
-        "category": "경업금지",
-        "title": "동종 요양시설 경업금지 약정",
-        "required": false,
-        "template": "양도인은 잔금일로부터 {경업금지기간}간 본 시설 반경 {경업금지반경} 이내에서 본인 또는 제3자 명의로 동종 노인요양시설·주간보호센터를 개설하거나 운영하지 않기로 한다.",
-        "variables": {
-          "경업금지기간": {
-            "label": "경업금지 기간",
-            "type": "text",
-            "default": "3년"
-          },
-          "경업금지반경": {
-            "label": "경업금지 반경",
-            "type": "text",
-            "default": "5km"
-          }
-        }
-      },
-      {
-        "id": "nh_opt_02",
-        "category": "시설·채무면책",
-        "title": "비품 목록 인계 및 미지급 채무 면책",
-        "required": false,
-        "template": "의료침대, 휠체어, 승합차량, 급식설비 등 별첨 비품목록 일체를 현 상태로 인계하며, 양도기준일 이전 발생한 식자재·의약품·리스 등 모든 미지급 채무는 양도인이 전액 책임지고 변제한다.",
-        "variables": {}
-      }
-    ]
-  },
   "premium_rights": {
-    "label": "권리금 계약",
-    "form_title": "상 가  권 리 금  계 약 서",
+    "label": "🏪 [상가] 권리금 계약",
+    "form_title": "상가 권리금 계약서",
     "template_key": "premium_rights",
     "clauses": [
       {
@@ -455,9 +592,90 @@
       }
     ]
   },
+  "farmland_sale": {
+    "label": "🌾 [토지] 농지 매매",
+    "form_title": "농지 매매 계약서",
+    "template_key": "farmland_sale",
+    "clauses": [
+      {
+        "id": "farm_req_01",
+        "category": "농취증·인허가",
+        "title": "농지취득자격증명(농취증) 발급 조건 및 불허 시 해제",
+        "required": true,
+        "template": "본 농지 매매는 농지법상 농지취득자격증명 발급을 조건으로 하며, 매수인은 잔금일({잔금일}) 전까지 농업경영계획서 작성 등 발급 절차를 이행하고 매도인은 필요 서류에 적극 협조한다. 매수인의 귀책사유 없이 농지취득자격증명이 반려(불허)될 경우 본 계약은 자동 해제되며 매도인은 수령한 계약금 전액을 즉시 반환한다.",
+        "variables": {
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "farm_req_02",
+        "category": "경작·농작물",
+        "title": "경작 현황·농작물·비닐하우스·관정 처리",
+        "required": true,
+        "template": "본 농지 내 경작 중인 농작물, 비닐하우스, 농막, 관정 및 지상물은 {처리주체}의 책임으로 잔금일({잔금일}) 전까지 정리(또는 현 상태 승계)하며, 불법 성토·폐기물·미신고 분묘 발견 시 매도인이 원상복구 책임을 진다.",
+        "variables": {
+          "처리주체": {
+            "label": "지상물·농작물 처리 주체",
+            "type": "text",
+            "default": "매도인"
+          },
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "farm_req_03",
+        "category": "현황·경계측량",
+        "title": "현황 농지 매매 및 공부상 면적 기준",
+        "required": true,
+        "template": "본 농지는 등기부 및 토지대장상 공부상 면적 기준으로 매매하며, 경계 확인을 위한 경계복원측량이 필요할 경우 측량 비용은 {측량비용부담}이(가) 부담한다.",
+        "variables": {
+          "측량비용부담": {
+            "label": "측량 비용 부담 주체",
+            "type": "text",
+            "default": "매수인"
+          }
+        }
+      },
+      {
+        "id": "farm_req_04",
+        "category": "권리말소·근저당",
+        "title": "근저당권·지상권 말소 및 공익직불금·제세공과금 정산",
+        "required": true,
+        "template": "매도인은 등기부상 근저당권(채권최고액 금 {채권최고액}원) 등 제한물권을 잔금일({잔금일})에 동시 말소(승계 합의 융자금 제외)하며, 공익직불금·농지 관련 부담금 및 제세공과금은 인도일 기준으로 정산한다.",
+        "variables": {
+          "채권최고액": {
+            "label": "현재 채권최고액(원)",
+            "type": "currency",
+            "default": ""
+          },
+          "잔금일": {
+            "label": "잔금 지급일",
+            "type": "date",
+            "bind_field": "balance_date"
+          }
+        }
+      },
+      {
+        "id": "farm_opt_01",
+        "category": "농지전용·도로",
+        "title": "진입농로·수리시설 확인 및 농지전용 협조",
+        "required": false,
+        "template": "매수인은 본 농지의 진입농로, 용·배수로 및 현황 경작 상태를 확인하였으며, 추후 매수인이 농지전용·개발행위허가 등을 추진할 경우 매도인은 잔금 전이라도 협의된 서류 협조에 동의한다.",
+        "variables": {}
+      }
+    ]
+  },
   "land_sale": {
-    "label": "토지 매매",
-    "form_title": "토 지  매 매  계 약 서",
+    "label": "⛰️ [토지] 토지 매매",
+    "form_title": "토지 매매 계약서",
     "template_key": "land_sale",
     "clauses": [
       {

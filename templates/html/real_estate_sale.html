@@ -99,7 +99,7 @@
   </tr>
 </table>
 <div class="sub-note">
-  위 제1조의 매매대금은 개업공인중개사의 입회하에 지불하기로 한다.
+  위 제1조의 매매대금은 개업공인중개사의 입회하에 지불하기로 한다.{% if contract_type == 'commercial_sale' and vat_type %} (건물분 부가가치세: <strong>{{ vat_type }}</strong>){% endif %}
 </div>
 {% endblock %}
 
