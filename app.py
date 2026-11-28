@@ -19,6 +19,7 @@ import streamlit.components.v1 as components
 from utils.ai_extractor import (
     delete_gemini_api_key_from_secrets,
     extract_contract_fields_from_documents,
+    generate_legal_clauses_from_text,
     get_gemini_api_key,
     mask_api_key,
     save_gemini_api_key_to_secrets,
@@ -36,6 +37,7 @@ from utils.doc_generator import (
 )
 from utils.formatter import (
     CONTRACT_TYPE_META,
+    MAX_INLINE_CLAUSE_COUNT,
     MAX_INLINE_CLAUSE_LINES,
     build_contract_context,
     calculate_balance,
@@ -46,6 +48,7 @@ from utils.formatter import (
     format_won,
     get_type_meta,
     number_to_korean,
+    resolve_smart_clause_placeholders,
     substitute_clause_variables,
 )
 from utils.storage import (
@@ -66,14 +69,14 @@ from utils.storage import (
 BASE_DIR = Path(__file__).resolve().parent
 CLAUSES_PATH = BASE_DIR / "data" / "clauses.json"
 
-# 계약 유형별 전용 카테고리 테마 컬러 (요양시설·주거·상가·토지 직관적 구분 + 선택 카드·배지·드롭다운 강조용)
+# 계약 유형별 시그니처 카테고리 테마 컬러 (A4 디지털 서식과 UI 선택 카드 100% 통일)
 CONTRACT_TYPE_THEMES: dict[str, dict[str, str]] = {
     "nursing_home_transfer": {
         "category": "🏥 요양시설",
-        "primary": "#047857",
-        "hover": "#065F46",
-        "soft_bg": "#ECFDF5",
-        "badge_bg": "#D1FAE5",
+        "primary": "#1E3A5F",
+        "hover": "#152B47",
+        "soft_bg": "#F1F5F9",
+        "badge_bg": "#F5ECD7",
     },
     "apartment_sale": {
         "category": "🏢 주거 · 아파트",
@@ -84,59 +87,59 @@ CONTRACT_TYPE_THEMES: dict[str, dict[str, str]] = {
     },
     "real_estate_sale": {
         "category": "🏠 주거 · 주택",
-        "primary": "#1E40AF",
-        "hover": "#1E3A8A",
-        "soft_bg": "#EEF2FF",
-        "badge_bg": "#E0E7FF",
+        "primary": "#1D4ED8",
+        "hover": "#1E40AF",
+        "soft_bg": "#EFF6FF",
+        "badge_bg": "#DBEAFE",
     },
     "housing_jeonse": {
         "category": "🏠 주거 · 전세",
-        "primary": "#2563EB",
-        "hover": "#1D4ED8",
+        "primary": "#1D4ED8",
+        "hover": "#1E40AF",
         "soft_bg": "#EFF6FF",
         "badge_bg": "#DBEAFE",
     },
     "housing_wolse": {
         "category": "🏠 주거 · 월세",
-        "primary": "#0284C7",
-        "hover": "#0369A1",
-        "soft_bg": "#F0F9FF",
-        "badge_bg": "#E0F2FE",
+        "primary": "#1D4ED8",
+        "hover": "#1E40AF",
+        "soft_bg": "#EFF6FF",
+        "badge_bg": "#DBEAFE",
     },
     "commercial_sale": {
         "category": "🏪 상가 · 매매",
-        "primary": "#6D28D9",
-        "hover": "#5B21B6",
-        "soft_bg": "#F5F3FF",
-        "badge_bg": "#EDE9FE",
+        "primary": "#047857",
+        "hover": "#065F46",
+        "soft_bg": "#ECFDF5",
+        "badge_bg": "#D1FAE5",
     },
     "commercial_lease": {
         "category": "🏪 상가 · 임대차",
-        "primary": "#7C3AED",
-        "hover": "#6D28D9",
-        "soft_bg": "#F5F3FF",
-        "badge_bg": "#EDE9FE",
+        "primary": "#047857",
+        "hover": "#065F46",
+        "soft_bg": "#ECFDF5",
+        "badge_bg": "#D1FAE5",
     },
     "premium_rights": {
         "category": "🏪 상가 · 권리금",
-        "primary": "#9333EA",
-        "hover": "#7E22CE",
-        "soft_bg": "#FAF5FF",
-        "badge_bg": "#F3E8FF",
+        "primary": "#047857",
+        "hover": "#065F46",
+        "soft_bg": "#ECFDF5",
+        "badge_bg": "#D1FAE5",
     },
     "farmland_sale": {
         "category": "🌾 토지 · 농지",
-        "primary": "#92400E",
-        "hover": "#78350F",
-        "soft_bg": "#FFFBEB",
-        "badge_bg": "#FDE68A",
+        "primary": "#15803D",
+        "hover": "#166534",
+        "soft_bg": "#F0FDF4",
+        "badge_bg": "#DCFCE7",
     },
     "land_sale": {
         "category": "⛰️ 토지 · 일반",
-        "primary": "#78350F",
-        "hover": "#451A03",
-        "soft_bg": "#FDF8F3",
-        "badge_bg": "#FDE68A",
+        "primary": "#15803D",
+        "hover": "#166534",
+        "soft_bg": "#F0FDF4",
+        "badge_bg": "#DCFCE7",
     },
 }
 
@@ -405,6 +408,35 @@ st.markdown(
         font-size: 12px !important;
         font-weight: 800 !important;
         color: #b91c1c !important;
+      }
+      /* 전문가용 특약 순서 관리(▲/▼/삭제) 버튼 콤팩트 가로 고정 */
+      .st-key-clause_order_list [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 0.28rem !important;
+      }
+      .st-key-clause_order_list .stButton > button {
+        min-height: 32px !important;
+        height: 32px !important;
+        padding: 0 6px !important;
+        border-radius: 6px !important;
+      }
+      .st-key-clause_order_list .stButton > button p {
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        line-height: 1 !important;
+      }
+      .clause-order-card {
+        border: 1px solid #cbd5e1;
+        border-left: 3.5px solid #1e3a5f;
+        border-radius: 8px;
+        padding: 0.4rem 0.6rem;
+        background: #f8fafc;
+        font-size: 0.85rem;
+        line-height: 1.42;
+        color: #0f172a;
       }
       /* Sticky 동작 보장을 위해 워크스페이스 래퍼 overflow: visible 명시 */
       .st-key-workspace_split,
@@ -1579,8 +1611,12 @@ def ensure_state_initialized() -> None:
         st.session_state["draft_mode"] = False
     if "custom_clauses_by_type" not in st.session_state:
         st.session_state["custom_clauses_by_type"] = {}
+    if "clause_order_by_type" not in st.session_state:
+        st.session_state["clause_order_by_type"] = {}
     if "_clause_overrides" not in st.session_state:
         st.session_state["_clause_overrides"] = {}
+    if "_ai_clause_feedback" not in st.session_state:
+        st.session_state["_ai_clause_feedback"] = None
     if "_expand_att_section" not in st.session_state:
         st.session_state["_expand_att_section"] = False
     if "_expand_party_section" not in st.session_state:
@@ -1687,7 +1723,9 @@ def start_new_contract(keep_type: bool = True) -> None:
     st.session_state["current_contract_status"] = "unsaved"
     st.session_state["_pending_blank_form_mode"] = True
     st.session_state["custom_clauses_by_type"] = {}
+    st.session_state["clause_order_by_type"] = {}
     st.session_state["_clause_overrides"] = {}
+    st.session_state["_ai_clause_feedback"] = None
     st.session_state["ai_last_result"] = None
     st.session_state["_expand_party_section"] = False
     st.session_state["captured_photos"] = []
@@ -1705,7 +1743,9 @@ def reset_form_to_empty() -> None:
     st.session_state["_form_data"] = _empty_form_values()
     st.session_state["_pending_blank_form_mode"] = True
     st.session_state["custom_clauses_by_type"] = {}
+    st.session_state["clause_order_by_type"] = {}
     st.session_state["_clause_overrides"] = {}
+    st.session_state["_ai_clause_feedback"] = None
     st.session_state["ai_last_result"] = None
     st.session_state["_expand_party_section"] = False
 
@@ -1716,7 +1756,9 @@ def apply_sample_to_form(contract_type: str) -> None:
     st.session_state["_form_data"] = _sample_form_values(contract_type)
     st.session_state["_pending_blank_form_mode"] = False
     st.session_state["custom_clauses_by_type"] = {}
+    st.session_state["clause_order_by_type"] = {}
     st.session_state["_clause_overrides"] = {}
+    st.session_state["_ai_clause_feedback"] = None
 
 
 def apply_loaded_payload(
@@ -1738,7 +1780,9 @@ def apply_loaded_payload(
     st.session_state["draft_mode"] = bool(payload.get("draft_mode", False))
     st.session_state["_pending_blank_form_mode"] = False
     st.session_state["custom_clauses_by_type"] = payload.get("custom_clauses_by_type", {})
+    st.session_state["clause_order_by_type"] = {}
     st.session_state["_clause_overrides"] = payload.get("clause_state", {})
+    st.session_state["_ai_clause_feedback"] = None
     st.session_state["captured_photos"] = []
     st.session_state["cam_step"] = int(st.session_state.get("cam_step", 0)) + 1
     st.session_state["camera_mode_open"] = True
@@ -2308,121 +2352,308 @@ def render_attachments_and_ai_panel(
                     st.code(raw_txt, language="json")
 
 
+CLAUSE_FILTER_GROUPS = ["전체", "필수 기본", "대출·융자", "하자·시설", "세금·비용", "행정·승계"]
+
+
+def _classify_clause_group(clause: dict[str, Any]) -> str:
+    """특약 메타데이터(category/title/required)를 상황별 표준 5대 카테고리로 분류한다."""
+    raw = f"{clause.get('category', '')} {clause.get('title', '')}"
+    if any(k in raw for k in ("근저당", "융자", "대출", "보증보험", "에스크로", "유보", "권리변동", "권리말소")):
+        return "대출·융자"
+    if any(k in raw for k in ("하자", "시설", "수선", "지상물", "분묘", "매설", "경작", "농작물", "비품", "생활", "원상복구", "위반건축물")):
+        return "하자·시설"
+    if any(k in raw for k in ("세금", "부가세", "포괄양수도", "관리비", "정산", "체납", "보수", "비용", "직불금", "인건비")):
+        return "세금·비용"
+    if any(k in raw for k in ("농취증", "인허가", "허가", "승계", "명도", "임대차", "지정", "행정", "도로", "맹지", "경계", "측량", "대항력", "전입", "영업", "경업")):
+        return "행정·승계"
+    if clause.get("required") or any(k in raw for k in ("기본", "현황", "법령")):
+        return "필수 기본"
+    return "행정·승계"
+
+
 def render_clause_selector(
     contract_type: str,
     type_cfg: dict[str, Any],
     live_form: dict[str, Any],
 ) -> list[str]:
-    """③ 정밀 특약사항 선택기 (필수/선택 구분, 변수 치환, 문구 직접 수정, 신규 추가)."""
+    """③ 전문가용 정밀 특약사항 시스템 (상황별 카테고리 필터, 스마트 변수 자동 치환, AI 법률 특약 생성, 순서 이동 ▲/▼ 및 개별 삭제)."""
     nonce = st.session_state["_form_nonce"]
     overrides: dict[str, Any] = st.session_state.get("_clause_overrides", {})
     clauses_def: list[dict[str, Any]] = type_cfg.get("clauses", [])
-    rendered_list: list[str] = []
+    meta_info = get_type_meta(contract_type)
+    p1_role = meta_info["party1"]
+    p2_role = meta_info["party2"]
 
-    st.caption("필수 특약은 기본 선택되어 있으며, 변수를 채우거나 본문을 직접 수정·추가할 수 있습니다.")
+    # 직전 실행에서 예약된 위젯 초기화 / 체크 해제 안전 처리 (위젯 생성 전 실행)
+    for k_clear in st.session_state.pop("_pending_clear_keys", []):
+        st.session_state[k_clear] = ""
+    for k_uncheck in st.session_state.pop("_pending_uncheck_keys", []):
+        st.session_state[k_uncheck] = False
 
+    st.caption(
+        "💡 스마트 변수 자동 치환 지원: `{잔금일}`, `{계약일}`, `{인도일}`, `{매매대금}`, `{보증금}`, `{계약금}`, `{잔금}` 등이 본문 입력값과 실시간 연동됩니다."
+    )
+
+    # 1) 모든 프리셋 특약의 세션 키 초기화 및 카테고리 분류
+    preset_by_id: dict[str, dict[str, Any]] = {}
+    available_groups: list[str] = ["전체"]
     for clause in clauses_def:
         cid = clause["id"]
+        preset_by_id[cid] = clause
+        grp = _classify_clause_group(clause)
+        if grp not in available_groups:
+            available_groups.append(grp)
         saved_c = overrides.get(cid, {})
         chk_key = f"chk_{nonce}_{contract_type}_{cid}"
         txt_key = f"txt_{nonce}_{contract_type}_{cid}"
-
         if chk_key not in st.session_state:
             st.session_state[chk_key] = bool(saved_c.get("checked", clause.get("required", False)))
         if txt_key not in st.session_state:
             st.session_state[txt_key] = str(saved_c.get("template", clause["template"]))
 
-        badge = "🔴 필수" if clause.get("required") else "🔵 선택"
-        cat = clause.get("category", "일반")
-        label = f"{badge} [{cat}] {clause['title']}"
+    # 카테고리 정렬 순서 유지
+    ordered_groups = [g for g in CLAUSE_FILTER_GROUPS if g in available_groups]
+    filter_key = f"clause_cat_filter_{contract_type}"
+    if st.session_state.get(filter_key) not in ordered_groups:
+        st.session_state[filter_key] = "전체"
 
-        checked = st.checkbox(label, key=chk_key)
+    selected_group = st.radio(
+        "📂 상황별 특약 카테고리 필터",
+        options=ordered_groups,
+        horizontal=True,
+        key=filter_key,
+    )
+
+    # 2) 필터링된 체크박스 라이브러리 렌더링 + 전체 체크 항목 텍스트 실시간 해석
+    resolved_presets: dict[str, str] = {}
+    for clause in clauses_def:
+        cid = clause["id"]
+        saved_c = overrides.get(cid, {})
+        chk_key = f"chk_{nonce}_{contract_type}_{cid}"
+        txt_key = f"txt_{nonce}_{contract_type}_{cid}"
+        grp = _classify_clause_group(clause)
+        show_here = selected_group == "전체" or grp == selected_group
+
+        if show_here:
+            badge = "🔴 필수" if clause.get("required") else "🔵 선택"
+            label = f"{badge} [{grp}] {clause['title']}"
+            checked = st.checkbox(label, key=chk_key)
+        else:
+            checked = bool(st.session_state.get(chk_key, False))
+
         if checked:
             var_meta: dict[str, dict[str, Any]] = clause.get("variables", {})
             saved_vars: dict[str, Any] = saved_c.get("variables", {})
             var_values: dict[str, Any] = {}
 
             if var_meta:
-                var_cols = st.columns(min(len(var_meta), 3))
-                for idx, (var_name, meta) in enumerate(var_meta.items()):
+                if show_here:
+                    var_cols = st.columns(min(len(var_meta), 2))
+                for idx, (var_name, vmeta) in enumerate(var_meta.items()):
                     vkey = f"var_{nonce}_{contract_type}_{cid}_{var_name}"
-                    bind_field = meta.get("bind_field")
-                    default_val = saved_vars.get(var_name, meta.get("default", ""))
+                    bind_field = vmeta.get("bind_field")
+                    default_val = saved_vars.get(var_name, vmeta.get("default", ""))
 
                     if bind_field and bind_field in live_form and var_name not in saved_vars:
                         bound_val = live_form[bind_field]
-                        if meta.get("type") == "date":
+                        if vmeta.get("type") == "date":
                             default_val = format_date_kr(bound_val, zero_pad=True)
                         else:
                             default_val = str(bound_val) if bound_val else ""
 
                     if vkey not in st.session_state:
                         st.session_state[vkey] = default_val
-                    elif bind_field and meta.get("type") == "date":
+                    elif bind_field and vmeta.get("type") == "date":
                         bound_str = format_date_kr(live_form.get(bind_field), zero_pad=True)
                         prev_bind_key = f"_prev_bind_{vkey}"
                         if st.session_state.get(prev_bind_key) != bound_str:
                             st.session_state[vkey] = bound_str
                             st.session_state[prev_bind_key] = bound_str
 
-                    with var_cols[idx % len(var_cols)]:
-                        var_values[var_name] = st.text_input(
-                            meta.get("label", var_name),
-                            key=vkey,
-                            placeholder=f"{{{var_name}}}",
-                        )
+                    if show_here:
+                        with var_cols[idx % len(var_cols)]:
+                            var_values[var_name] = st.text_input(
+                                vmeta.get("label", var_name),
+                                key=vkey,
+                                placeholder=f"{{{var_name}}}",
+                            )
+                    else:
+                        var_values[var_name] = st.session_state.get(vkey, default_val)
 
-            with st.expander("✏️ 특약 문구 직접 수정", expanded=False):
-                edited_template = st.text_area(
-                    "특약 원문 ({변수명} 유지 가능)",
-                    key=txt_key,
-                    height=80,
-                    label_visibility="collapsed",
-                )
+            if show_here:
+                with st.expander("✏️ 특약 문구 직접 수정", expanded=False):
+                    edited_template = st.text_area(
+                        "특약 원문 ({변수명} 유지 가능)",
+                        key=txt_key,
+                        height=78,
+                        label_visibility="collapsed",
+                    )
+            else:
+                edited_template = str(st.session_state.get(txt_key, clause["template"]))
+
             resolved = substitute_clause_variables(edited_template, var_values, var_meta)
-            rendered_list.append(resolved)
+            resolved = resolve_smart_clause_placeholders(resolved, live_form)
+            resolved_presets[cid] = resolved
 
+    # 3) ✨ AI 맞춤 법률 특약 생성기
     st.markdown("---")
-    st.markdown("**➕ 사용자 정의 특약 추가**")
+    st.markdown("**✨ AI 맞춤 법률 특약 생성기**")
+    ai_note_key = f"ai_clause_note_{nonce}_{contract_type}"
+    ai_note_text = st.text_input(
+        "현장 합의 내용 (구어체 입력)",
+        key=ai_note_key,
+        placeholder="예: 잔금 전에 매도인이 도배·장판 새로 해주고, 입주 후 6개월 내 누수 생기면 수리비 부담",
+        label_visibility="collapsed",
+    )
     custom_map: dict[str, list[str]] = st.session_state["custom_clauses_by_type"]
     custom_list: list[str] = custom_map.setdefault(contract_type, [])
 
+    if st.button(
+        "✨ AI 법률 특약으로 변환·추가",
+        key=f"ai_clause_gen_btn_{nonce}_{contract_type}",
+        type="primary",
+        use_container_width=True,
+    ):
+        api_key = get_gemini_api_key(st.secrets)
+        with st.spinner("🤖 AI가 현장 합의를 정식 법률 특약 문구로 다듬고 있습니다..."):
+            gen_res = generate_legal_clauses_from_text(
+                user_note=ai_note_text,
+                contract_type_label=type_cfg["label"],
+                api_key=api_key,
+                party1_label=p1_role,
+                party2_label=p2_role,
+                timeout_seconds=60,
+            )
+        if gen_res.get("ok"):
+            for new_c in gen_res.get("clauses", []):
+                custom_list.append(new_c)
+            st.session_state["_pending_clear_keys"] = [ai_note_key]
+            st.session_state["_ai_clause_feedback"] = ("success", gen_res.get("message", "AI 특약이 추가되었습니다."))
+            st.rerun()
+        else:
+            st.session_state["_ai_clause_feedback"] = ("error", gen_res.get("message", "AI 특약 생성 실패"))
+            st.rerun()
+
+    ai_fb = st.session_state.get("_ai_clause_feedback")
+    if isinstance(ai_fb, tuple) and len(ai_fb) == 2:
+        if ai_fb[0] == "success":
+            st.success(ai_fb[1])
+        else:
+            st.error(ai_fb[1])
+
+    # 4) 수동 사용자 정의 특약 직접 추가
+    st.markdown("**➕ 사용자 정의 특약 직접 추가**")
     c_in, c_btn = st.columns([4, 1])
     new_clause_key = f"new_custom_clause_{nonce}_{contract_type}"
     with c_in:
         new_clause_text = st.text_input(
             "새 특약 내용 입력",
             key=new_clause_key,
-            placeholder="예: 입주 전 도배 및 장판을 신규 시공하여 인도한다.",
+            placeholder="예: 잔금일({잔금일}) 전까지 도배 및 장판을 신규 시공한다.",
             label_visibility="collapsed",
         )
     with c_btn:
         if st.button("추가", key=f"add_btn_{nonce}_{contract_type}", use_container_width=True):
             if new_clause_text.strip():
                 custom_list.append(new_clause_text.strip())
-                st.session_state[new_clause_key] = ""
+                st.session_state["_pending_clear_keys"] = [new_clause_key]
                 st.rerun()
 
-    to_delete: int | None = None
-    for idx, c_text in enumerate(custom_list):
-        ec1, ec2 = st.columns([5, 1])
-        with ec1:
-            updated = st.text_input(
-                f"추가 특약 {idx + 1}",
-                value=c_text,
-                key=f"custom_edit_{nonce}_{contract_type}_{idx}",
-                label_visibility="collapsed",
-            )
-            custom_list[idx] = updated
-            if updated.strip():
-                rendered_list.append(updated.strip())
-        with ec2:
-            if st.button("삭제", key=f"custom_del_{nonce}_{contract_type}_{idx}", use_container_width=True):
-                to_delete = idx
+    # 5) 적용된 특약 통합 순서 관리 (▲ 위로 / ▼ 아래로 / 🗑️ 개별 삭제)
+    order_map: dict[str, list[str]] = st.session_state.setdefault("clause_order_by_type", {})
+    order_tokens: list[str] = list(order_map.get(contract_type, []))
 
-    if to_delete is not None:
-        custom_list.pop(to_delete)
-        st.rerun()
+    valid_tokens: list[str] = [f"p:{cid}" for cid in resolved_presets] + [
+        f"c:{i}" for i, txt in enumerate(custom_list) if str(txt).strip()
+    ]
+    valid_set = set(valid_tokens)
+    # 기존 순서를 최대한 보존하되, 제거된 항목은 빼고 새로 추가된 항목은 뒤에 추가
+    order_tokens = [tok for tok in order_tokens if tok in valid_set]
+    for tok in valid_tokens:
+        if tok not in order_tokens:
+            order_tokens.append(tok)
+    order_map[contract_type] = order_tokens
+
+    rendered_list: list[str] = []
+    if order_tokens:
+        st.markdown("---")
+        annex_hint = (
+            f" · 📄 **{len(order_tokens)}항 (5항 초과 → 2페이지 [별지] 자동 분리)**"
+            if len(order_tokens) > MAX_INLINE_CLAUSE_COUNT
+            else f" · A4 1페이지 내 표시 (5항 초과 시 별지 자동 분리)"
+        )
+        st.markdown(f"**📋 적용된 특약 순서 관리 (총 {len(order_tokens)}항)**")
+        st.caption(annex_hint.lstrip(" · "))
+
+        with st.container(key="clause_order_list"):
+            for pos, tok in enumerate(order_tokens):
+                kind, raw_id = tok.split(":", 1)
+                if kind == "p":
+                    raw_text = resolved_presets.get(raw_id, "")
+                    tag_badge = "표준"
+                else:
+                    c_idx = int(raw_id)
+                    raw_text = resolve_smart_clause_placeholders(str(custom_list[c_idx]), live_form)
+                    tag_badge = "맞춤/AI"
+
+                rendered_list.append(raw_text)
+                oc_txt, oc_up, oc_dn, oc_del = st.columns([5.8, 0.75, 0.75, 0.85], gap="small")
+                with oc_txt:
+                    st.markdown(
+                        f'<div class="clause-order-card"><strong>{pos + 1}항 [{tag_badge}]</strong> {raw_text}</div>',
+                        unsafe_allow_html=True,
+                    )
+                with oc_up:
+                    if st.button(
+                        "▲",
+                        key=f"cl_up_{nonce}_{contract_type}_{pos}_{tok}",
+                        disabled=(pos == 0),
+                        use_container_width=True,
+                        help="위로 이동",
+                    ):
+                        order_tokens[pos - 1], order_tokens[pos] = order_tokens[pos], order_tokens[pos - 1]
+                        order_map[contract_type] = order_tokens
+                        st.rerun()
+                with oc_dn:
+                    if st.button(
+                        "▼",
+                        key=f"cl_dn_{nonce}_{contract_type}_{pos}_{tok}",
+                        disabled=(pos == len(order_tokens) - 1),
+                        use_container_width=True,
+                        help="아래로 이동",
+                    ):
+                        order_tokens[pos + 1], order_tokens[pos] = order_tokens[pos], order_tokens[pos + 1]
+                        order_map[contract_type] = order_tokens
+                        st.rerun()
+                with oc_del:
+                    if st.button(
+                        "🗑️",
+                        key=f"cl_del_{nonce}_{contract_type}_{pos}_{tok}",
+                        use_container_width=True,
+                        help="이 특약 삭제",
+                    ):
+                        if kind == "p":
+                            chk_key = f"chk_{nonce}_{contract_type}_{raw_id}"
+                            st.session_state.setdefault("_pending_uncheck_keys", []).append(chk_key)
+                            order_tokens.pop(pos)
+                            order_map[contract_type] = order_tokens
+                        else:
+                            del_idx = int(raw_id)
+                            custom_list.pop(del_idx)
+                            # 커스텀 인덱스 재정렬
+                            new_order: list[str] = []
+                            for t in order_tokens:
+                                tk, ti = t.split(":", 1)
+                                if tk == "p":
+                                    new_order.append(t)
+                                else:
+                                    old_i = int(ti)
+                                    if old_i < del_idx:
+                                        new_order.append(f"c:{old_i}")
+                                    elif old_i > del_idx:
+                                        new_order.append(f"c:{old_i - 1}")
+                            order_map[contract_type] = new_order
+                        st.rerun()
 
     st.markdown("---")
     a1, a2 = st.columns(2)
@@ -3176,13 +3407,19 @@ def main() -> None:
                 )
                 live_form["handover_date"] = st.date_input(handover_lbl, key=_wkey("handover_date"))
 
-        # ③ 정밀 특약사항 선택기
-        with st.expander("③ 정밀 특약사항 선택기 (clauses.json 연동)", expanded=not blank_form_mode):
+        # ③ 전문가용 정밀 특약사항 시스템
+        with st.expander("③ 정밀 특약사항 · AI 법률 특약 생성기", expanded=not blank_form_mode):
             if blank_form_mode:
                 st.info(
-                    "📄 현재 **[빈 양식 모드]**가 켜져 있어 특약사항이 깨끗한 수기용 빈칸으로 출력됩니다. "
-                    "정밀 특약을 넣으려면 상단의 **[📄 빈 양식 모드]** 토글을 꺼 주세요."
+                    "📄 현재 **[빈 양식 모드]**가 켜져 있어 특약사항이 깨끗한 수기용 빈칸으로 출력됩니다."
                 )
+                if st.button(
+                    "📝 특약 작성 시작 (빈 양식 모드 끄기)",
+                    key="disable_blank_for_clauses_btn",
+                    use_container_width=True,
+                ):
+                    st.session_state["_pending_blank_form_mode"] = False
+                    st.rerun()
                 rendered_clauses = []
             else:
                 rendered_clauses = render_clause_selector(selected_type, type_cfg, live_form)
@@ -3283,6 +3520,7 @@ def main() -> None:
 
     # ==================== 공통 컨텍스트 빌드 및 교차검증 ====================
     form_payload = dict(live_form)
+    form_payload["doc_id"] = current_cid
     form_payload["contract_type"] = selected_type
     form_payload["contract_type_label"] = type_cfg["label"]
     form_payload["form_title"] = type_cfg["form_title"]
@@ -3316,15 +3554,16 @@ def main() -> None:
                 st.warning(f"⚠️ {context['validation_msg']} (참고용 안내 — 이 상태에서도 인쇄·다운로드 가능)")
 
             est_lines = context["estimated_clause_lines"]
+            c_cnt = context["clause_count"]
             mode_badge = "🎨 컬러 인쇄용" if color_mode == "color" else "🖨️ 흑백 인쇄용"
             if context["is_annex"]:
                 st.info(
-                    f"{mode_badge} · 📄 특약 예상 분량 **{est_lines}줄** (한도 {MAX_INLINE_CLAUSE_LINES}줄 초과) → "
-                    "본문 **`특약사항 별지 참조`** 및 **2페이지 [별지] 특약사항** 자동 생성됨"
+                    f"{mode_badge} · 📄 특약 **총 {c_cnt}항 / {est_lines}줄** (한도 {MAX_INLINE_CLAUSE_COUNT}항·{MAX_INLINE_CLAUSE_LINES}줄 초과) → "
+                    f"1페이지 **`※ 상세 특약은 첨부 [별지] 특약사항(총 {c_cnt}항) 참조`** 및 2페이지 [별지] 자동 생성됨"
                 )
             else:
                 st.caption(
-                    f"{mode_badge} · 📏 특약 본문 분량: **{est_lines} / {MAX_INLINE_CLAUSE_LINES}줄** (A4 1장 내 출력)"
+                    f"{mode_badge} · 📏 특약: **{c_cnt}항 ({est_lines}/{MAX_INLINE_CLAUSE_LINES}줄)** (A4 1장 내 출력 · 5항 초과 시 별지 자동 분리)"
                 )
 
             date_tag = str(live_form.get("contract_date") or date.today()).replace("-", "")

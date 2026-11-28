@@ -673,3 +673,133 @@ def extract_contract_fields_from_documents(
         f"증빙서류 {attached_count}건에서 총 {len(mapped)}개 항목을 판독해 입력란에 자동 반영했습니다.{switch_note} ({elapsed:.1f}초)"
     )
     return result
+
+
+class GeneratedLegalClauses(BaseModel):
+    """AI 맞춤 법률 특약 생성 결과 스키마."""
+
+    clauses: list[str] = Field(
+        default_factory=list,
+        description="명확하고 법적 효력이 분명한 한국어 계약서 특약 조항 1~2개 리스트 (번호 접두어 제외)",
+    )
+
+
+def generate_legal_clauses_from_text(
+    user_note: str,
+    contract_type_label: str,
+    api_key: str,
+    party1_label: str = "매도인",
+    party2_label: str = "매수인",
+    timeout_seconds: int = DEFAULT_API_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """사용자가 구어체로 입력한 현장 합의 내용을 Gemini API(다중 모델 자동 우회·재시도)로 정식 법률 특약 1~2개로 변환한다."""
+    note = (user_note or "").strip()
+    if not note:
+        return {"ok": False, "clauses": [], "message": "변환할 현장 합의 내용을 먼저 입력해 주세요."}
+    if not api_key:
+        return {
+            "ok": False,
+            "clauses": [],
+            "message": "GEMINI_API_KEY가 설정되지 않았습니다. 좌측 사이드바 하단 [🔑 Gemini API 키 설정]에서 키를 저장해 주세요.",
+        }
+
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError as exc:
+        return {"ok": False, "clauses": [], "message": f"`google-genai` 패키지가 설치되어 있지 않습니다: {exc}"}
+
+    prompt = (
+        f"당신은 대한민국 부동산·요양시설 전문 변호사 겸 베테랑 공인중개사입니다.\n"
+        f"현재 작성 중인 계약서 유형은 [{contract_type_label}]이며 당사자는 '{party1_label}'과 '{party2_label}'입니다.\n"
+        f"아래 사용자의 구어체 현장 합의 메모를 법적 분쟁 예방에 효과적이고 명확한 계약서 정식 특약사항 문구 1~2개로 다듬어 JSON으로 반환하세요.\n\n"
+        f"[규칙]\n"
+        f"1. 문장 앞에 '1.', '2.' 같은 번호나 불릿은 붙이지 말고 깔끔한 조항 문장만 작성하세요.\n"
+        f"2. 날짜나 금액이 언급되면 가능하면 '{{잔금일}}', '{{계약일}}', '{{매매대금}}', '{{보증금}}' 같은 스마트 변수를 자연스럽게 활용하거나 사용자가 명시한 숫자를 정확히 유지하세요.\n"
+        f"3. 책임 주체({party1_label}/{party2_label}), 이행 기한, 미이행 시 처리(해제·비용 정산 등)를 간결하고 명확하게 기재하세요.\n"
+        f"4. 반드시 1개 또는 2개의 조항만 반환하세요.\n\n"
+        f"[사용자 현장 합의 메모]\n{note}"
+    )
+
+    def _call_clause_model(model_name: str, limit_sec: float) -> Any:
+        http_opts = types.HttpOptions(
+            timeout=int(limit_sec * 1000),
+            retry_options=types.HttpRetryOptions(attempts=1),
+        )
+        client = genai.Client(api_key=api_key, http_options=http_opts)
+        return client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=768,
+                response_mime_type="application/json",
+                response_schema=GeneratedLegalClauses,
+                http_options=http_opts,
+            ),
+        )
+
+    def _run_timeout(fn: Callable[[], Any], limit_sec: float) -> Any:
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(fn)
+        try:
+            return future.result(timeout=max(1.0, limit_sec))
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+    attempt_errors: list[str] = []
+    used_model = ""
+    response = None
+
+    for idx, model_name in enumerate(PREFERRED_OCR_MODELS):
+        try:
+            response = _run_timeout(lambda m=model_name: _call_clause_model(m, float(timeout_seconds)), float(timeout_seconds))
+            used_model = model_name
+            break
+        except FuturesTimeoutError:
+            attempt_errors.append(f"{model_name}: TIMEOUT")
+            if idx + 1 < len(PREFERRED_OCR_MODELS):
+                time.sleep(RETRY_DELAY_SECONDS)
+            continue
+        except Exception as exc:
+            msg_u = f"{type(exc).__name__}: {exc}".upper()
+            attempt_errors.append(f"{model_name}: {exc}")
+            is_retryable = any(
+                k in msg_u
+                for k in ("504", "DEADLINE", "TIMEOUT", "503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "502", "500", "404", "NOT_FOUND")
+            )
+            if is_retryable and idx + 1 < len(PREFERRED_OCR_MODELS):
+                if "404" not in msg_u and "NOT_FOUND" not in msg_u:
+                    time.sleep(RETRY_DELAY_SECONDS)
+                continue
+            return {
+                "ok": False,
+                "clauses": [],
+                "message": f"AI 특약 생성 중 오류가 발생했습니다({model_name}): {type(exc).__name__}: {exc}",
+            }
+
+    if response is None:
+        return {
+            "ok": False,
+            "clauses": [],
+            "message": "모든 Gemini 모델이 일시적 혼잡·시간초과로 응답하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        }
+
+    try:
+        parsed = _parse_json_strict(response.text or "")
+        raw_list = parsed.get("clauses", [])
+        cleaned = [
+            re.sub(r"^\s*\d+[\.\)]\s*", "", str(item).strip())
+            for item in raw_list
+            if str(item).strip()
+        ][:2]
+        if not cleaned:
+            return {"ok": False, "clauses": [], "message": "AI가 유효한 특약 문구를 생성하지 못했습니다. 내용을 조금 더 구체적으로 입력해 주세요."}
+        return {
+            "ok": True,
+            "clauses": cleaned,
+            "used_model": used_model,
+            "message": f"✨ AI가 {len(cleaned)}개의 정식 법률 특약을 생성해 추가했습니다. [{used_model}]",
+        }
+    except Exception as exc:
+        return {"ok": False, "clauses": [], "message": f"AI 응답 파싱 실패: {type(exc).__name__}: {exc}"}
