@@ -255,17 +255,10 @@ st.markdown(
         flex-wrap: wrap;
         gap: 0.65rem;
       }
-      .st-key-font_size_bar [data-testid="stWidgetLabel"],
-      .st-key-preview_toggle_box [data-testid="stWidgetLabel"] {
+      .st-key-font_size_bar [data-testid="stWidgetLabel"] {
         margin-bottom: 0 !important;
         font-weight: 700 !important;
         color: #1e293b !important;
-      }
-      .st-key-preview_toggle_box {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        border-radius: 10px;
-        padding: 0.28rem 0.7rem;
       }
       /* Sticky 동작 보장을 위해 워크스페이스 래퍼 overflow: visible 명시 */
       .st-key-workspace_split,
@@ -273,8 +266,11 @@ st.markdown(
       .st-key-workspace_split [data-testid="stHorizontalBlock"]:has(.st-key-form_pane) {
         overflow: visible !important;
       }
-      /* 데스크탑: 좌측 입력 폼 콤팩트 정리 + 우측 계약서 미리보기 Sticky 고정 */
+      /* 데스크탑: 모바일 전용 탭 숨김 + 좌측 콤팩트 입력 폼 + 우측 계약서 미리보기 Sticky 고정 */
       @media (min-width: 769px) {
+        .st-key-mobile_view_switch {
+          display: none !important;
+        }
         .st-key-workspace_split [data-testid="stHorizontalBlock"]:has(.st-key-form_pane) {
           align-items: flex-start !important;
         }
@@ -313,27 +309,111 @@ st.markdown(
           border-radius: 10px !important;
           background: #e9edf2 !important;
           box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
+          touch-action: pan-x pan-y pinch-zoom !important;
         }
       }
       @media (max-width: 768px) {
         html, body, .stApp {
           -webkit-text-size-adjust: 100%;
-          touch-action: manipulation;
+          touch-action: pan-x pan-y pinch-zoom !important;
         }
         .block-container {
-          padding-left: 0.5rem !important;
-          padding-right: 0.5rem !important;
-          padding-top: 0.4rem !important;
+          padding-left: 0.45rem !important;
+          padding-right: 0.45rem !important;
+          padding-top: 0.35rem !important;
         }
         .app-header-bar {
-          padding: 0.75rem 0.9rem !important;
+          padding: 0.5rem 0.75rem !important;
+          margin-bottom: 0.35rem !important;
+          gap: 0.4rem !important;
         }
-        /* 모바일: 미리보기를 화면 상단에 고정(column-reverse + sticky top:0) */
+        .app-header-icon {
+          width: 34px !important;
+          height: 34px !important;
+          font-size: 1.15rem !important;
+        }
+        .app-header-title {
+          font-size: 1.28rem !important;
+        }
+        .app-header-sub {
+          display: none !important;
+        }
+        .app-header-pill {
+          padding: 3px 9px !important;
+          font-size: 12.5px !important;
+        }
+        .st-key-font_size_bar {
+          padding: 0.2rem 0.55rem !important;
+          margin-bottom: 0.35rem !important;
+        }
+        .st-key-contract_type_card {
+          padding: 0.4rem 0.55rem 0.45rem 0.55rem !important;
+        }
+        .st-key-top_controls_row [data-testid="stVerticalBlock"] {
+          gap: 0.3rem !important;
+        }
+        /* 모바일 상단 버튼 다이어트: 잠금/임시저장/최종저장 3등분 1줄 + 예시/초기화 2등분 1줄 강제 */
+        .st-key-action_buttons_row [data-testid="stHorizontalBlock"],
+        .st-key-quick_tools_row [data-testid="stHorizontalBlock"],
+        .st-key-mobile_view_switch [data-testid="stHorizontalBlock"] {
+          display: flex !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          gap: 0.35rem !important;
+        }
+        .st-key-action_buttons_row [data-testid="stColumn"],
+        .st-key-quick_tools_row [data-testid="stColumn"],
+        .st-key-mobile_view_switch [data-testid="stColumn"] {
+          flex: 1 1 0% !important;
+          min-width: 0 !important;
+          width: auto !important;
+        }
+        .st-key-action_buttons_row .stButton > button,
+        .st-key-quick_tools_row .stButton > button {
+          min-height: 36px !important;
+          height: 36px !important;
+          padding: 0.15rem 0.3rem !important;
+          white-space: nowrap !important;
+          border-radius: 8px !important;
+        }
+        .st-key-action_buttons_row .stButton > button p,
+        .st-key-quick_tools_row .stButton > button p {
+          font-size: 13px !important;
+          line-height: 1.1 !important;
+          white-space: nowrap !important;
+        }
+        /* 모바일 전용 [✏️ 계약서 입력 / 📄 계약서 크게 보기] 전환 바 */
+        .st-key-mobile_view_switch {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 950 !important;
+          background: rgba(248, 250, 252, 0.96) !important;
+          backdrop-filter: blur(6px);
+          border: 1.5px solid #cbd5e1 !important;
+          border-radius: 10px !important;
+          padding: 0.3rem !important;
+          margin: 0.35rem 0 0.5rem 0 !important;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1) !important;
+        }
+        .st-key-mobile_view_switch .stButton > button {
+          min-height: 44px !important;
+          height: 44px !important;
+          padding: 0.25rem 0.4rem !important;
+          border-radius: 8px !important;
+          white-space: nowrap !important;
+        }
+        .st-key-mobile_view_switch .stButton > button p {
+          font-size: 15px !important;
+          font-weight: 800 !important;
+          line-height: 1.15 !important;
+          white-space: nowrap !important;
+        }
+        /* 모바일 워크스페이스: 선택한 탭만 100% 전체 폭·높이로 시원하게 표시 */
         .st-key-workspace_split [data-testid="stHorizontalBlock"]:has(.st-key-form_pane) {
           display: flex !important;
-          flex-direction: column-reverse !important;
+          flex-direction: column !important;
           flex-wrap: nowrap !important;
-          gap: 0.75rem !important;
+          gap: 0.5rem !important;
         }
         .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-form_pane),
         .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {
@@ -341,39 +421,18 @@ st.markdown(
           min-width: 100% !important;
           flex: none !important;
         }
-        .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 999 !important;
-          background: #ffffff !important;
-          border: 1px solid #cbd5e1 !important;
-          border-top: none !important;
-          border-radius: 0 0 12px 12px !important;
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16) !important;
-          padding: 0.35rem 0.35rem 0.45rem 0.35rem !important;
-          overflow-y: auto !important;
-          -webkit-overflow-scrolling: touch !important;
-        }
-        /* 모바일 상단 배치 순서: 1) 계약서 미리보기 → 2) 크게/작게/숨기기 바 → 3) 다운로드/검증 */
-        .st-key-preview_pane [data-testid="stVerticalBlock"] > div:has(.st-key-preview_iframe_box) {
-          order: 1 !important;
-        }
-        .st-key-preview_pane [data-testid="stVerticalBlock"] > div:has(.st-key-preview_toggle_box) {
-          order: 2 !important;
-        }
-        .st-key-preview_pane [data-testid="stVerticalBlock"] > div:has(.st-key-preview_actions_box) {
-          order: 3 !important;
-        }
-        .st-key-preview_pane [data-testid="stVerticalBlock"] {
-          gap: 0.35rem !important;
+        .st-key-preview_pane,
+        .st-key-preview_iframe_box,
+        .st-key-preview_iframe_box iframe {
+          touch-action: pan-x pan-y pinch-zoom !important;
         }
         .st-key-preview_iframe_box iframe {
+          height: 83vh !important;
+          min-height: 520px !important;
+          width: 100% !important;
           border: 1px solid #cbd5e1 !important;
-          border-radius: 8px !important;
+          border-radius: 10px !important;
           background: #e9edf2 !important;
-        }
-        .app-header-title {
-          font-size: 1.55rem !important;
         }
         .app-header-sub,
         .app-header-pill {
@@ -601,33 +660,60 @@ def inject_font_scale_css(font_scale: str) -> None:
     )
 
 
-def inject_preview_layout_css(preview_mode: str) -> None:
-    """미리보기 모드('크게'/'작게'/'숨기기')에 따라 모바일 상단 고정 높이 및 스타일을 동적 제어한다."""
-    if preview_mode == "크게":
-        mobile_pane_max_h = "66vh"
-        mobile_iframe_h = "56vh"
-        mobile_iframe_min_h = "320px"
-    elif preview_mode == "숨기기":
-        mobile_pane_max_h = "18vh"
-        mobile_iframe_h = "0px"
-        mobile_iframe_min_h = "0px"
-    else:  # "작게" (기본: 약 38vh~42vh 상단 고정 실시간 미리보기)
-        mobile_pane_max_h = "46vh"
-        mobile_iframe_h = "38vh"
-        mobile_iframe_min_h = "230px"
+def inject_mobile_pinch_zoom_meta() -> None:
+    """상위 문서의 viewport 메타태그에 두 손가락 핀치 줌(확대/축소) 허용을 강제 적용한다."""
+    components.html(
+        """
+        <script>
+          (function () {
+            var content = "width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes";
+            function patchDoc(doc) {
+              if (!doc || !doc.head) return;
+              var meta = doc.querySelector('meta[name="viewport"]');
+              if (!meta) {
+                meta = doc.createElement('meta');
+                meta.name = 'viewport';
+                doc.head.appendChild(meta);
+              }
+              if (meta.getAttribute('content') !== content) {
+                meta.setAttribute('content', content);
+              }
+            }
+            try { patchDoc(window.parent.document); } catch (e) {}
+            try { patchDoc(window.top.document); } catch (e) {}
+          })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
+
+def inject_mobile_tab_css(active_tab: str) -> None:
+    """모바일(<=768px)에서만 선택한 탭('input' 또는 'preview')이 전체 화면을 차지하도록 제어한다."""
+    if active_tab == "preview":
+        mobile_rule = """
+            .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-form_pane) {
+              display: none !important;
+            }
+            .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {
+              display: block !important;
+            }
+        """
+    else:
+        mobile_rule = """
+            .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {
+              display: none !important;
+            }
+            .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-form_pane) {
+              display: block !important;
+            }
+        """
     st.markdown(
         f"""
         <style>
           @media (max-width: 768px) {{
-            .st-key-workspace_split [data-testid="stColumn"]:has(.st-key-preview_pane) {{
-              max-height: {mobile_pane_max_h} !important;
-            }}
-            .st-key-preview_iframe_box iframe {{
-              height: {mobile_iframe_h} !important;
-              min-height: {mobile_iframe_min_h} !important;
-              max-height: {mobile_iframe_h} !important;
-            }}
+            {mobile_rule}
           }}
         </style>
         """,
@@ -635,33 +721,271 @@ def inject_preview_layout_css(preview_mode: str) -> None:
     )
 
 
-def _enhance_live_preview_html(printable_html: str, preview_mode: str) -> str:
-    """실시간 A4 미리보기 iframe 전용 스케일·선명도 최적화 (다운로드/인쇄용 원본 HTML은 변경하지 않음)."""
-    max_scale = 1.45 if preview_mode == "크게" else 1.32
+def _enhance_live_preview_html(printable_html: str) -> str:
+    """실시간 A4 미리보기 iframe 전용 핀치줌·확대/축소 버튼([축소 -][화면맞춤][크게 100%][더 크게 130%]) 최적화.
+
+    다운로드 및 인쇄용 원본 printable_html은 변경하지 않는다.
+    """
     enhanced = printable_html.replace(
-        "var availableW = Math.max(260, document.documentElement.clientWidth - 20);",
-        "var availableW = Math.max(260, document.documentElement.clientWidth - 10);",
-    ).replace(
-        "var scale = Math.min(1, availableW / rawW);",
-        f"var scale = Math.min({max_scale}, availableW / rawW);",
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />',
     )
+
+    zoom_toolbar_html = """<div class="zoom-controls">
+      <button type="button" id="btnZoomOut" title="축소">축소 -</button>
+      <button type="button" id="btnZoomFit" title="화면 폭에 맞춤">화면맞춤</button>
+      <button type="button" id="btnZoom100" title="A4 100% 크기로 크게 보기">크게 100%</button>
+      <button type="button" id="btnZoom130" title="A4 130% 크기로 더 크게 보기">더 크게 130%</button>
+      <button type="button" class="print-btn" onclick="window.print()">🖨️ 인쇄</button>
+    </div>"""
+    enhanced = enhanced.replace(
+        '<button onclick="window.print()">🖨️ 인쇄 / PDF로 저장</button>',
+        zoom_toolbar_html,
+    )
+
+    # .preview-wrapper를 독립 4방향 스크롤 뷰포트로 감싸 100%/130% 확대 시에도 상단 툴바 고정 + 부드러운 좌우/상하 스와이프 보장
+    enhanced = enhanced.replace(
+        '<div class="preview-wrapper">',
+        '<div id="previewScrollViewport" class="preview-scroll-viewport"><div class="preview-wrapper">',
+        1,
+    )
+
     extra_css = """
     <style>
       @media screen {
-        .preview-stage { padding: 8px 4px 18px 4px !important; }
+        html, body {
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          display: flex !important;
+          flex-direction: column !important;
+          touch-action: pan-x pan-y pinch-zoom !important;
+        }
+        .toolbar {
+          flex-shrink: 0 !important;
+          position: relative !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          padding: 6px 8px !important;
+          gap: 6px !important;
+          z-index: 300 !important;
+        }
+        .toolbar-meta {
+          gap: 5px !important;
+          font-size: 11.5px !important;
+        }
+        .zoom-controls {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          flex-wrap: wrap;
+        }
+        .zoom-controls button {
+          background: #334155 !important;
+          color: #f8fafc !important;
+          border: 1px solid #64748b !important;
+          border-radius: 6px !important;
+          padding: 5px 9px !important;
+          font-size: 12.5px !important;
+          font-weight: 700 !important;
+          min-height: 32px !important;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .zoom-controls button:hover {
+          background: #475569 !important;
+        }
+        .zoom-controls button.active {
+          background: #f59e0b !important;
+          color: #0f172a !important;
+          border-color: #fbbf24 !important;
+        }
+        .zoom-controls button.print-btn {
+          background: #2563eb !important;
+          border-color: #3b82f6 !important;
+        }
+        .preview-scroll-viewport {
+          flex: 1 1 auto !important;
+          width: 100% !important;
+          overflow: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          touch-action: pan-x pan-y pinch-zoom !important;
+          background: #e9edf2;
+        }
+        .preview-wrapper {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: flex-start !important;
+          padding: 8px 6px 24px 6px !important;
+          width: max-content !important;
+          min-width: 100% !important;
+          box-sizing: border-box !important;
+          touch-action: pan-x pan-y pinch-zoom !important;
+        }
+        .page-scale-slot {
+          margin: 0 auto !important;
+          touch-action: pan-x pan-y pinch-zoom !important;
+        }
         .a4-page {
           -webkit-font-smoothing: antialiased;
           text-rendering: optimizeLegibility;
+          touch-action: pan-x pan-y pinch-zoom !important;
         }
-        .toolbar {
-          padding: 5px 10px !important;
-          font-size: 11.5px !important;
+      }
+      @media print {
+        html, body {
+          height: auto !important;
+          overflow: visible !important;
+          display: block !important;
+        }
+        .preview-scroll-viewport {
+          height: auto !important;
+          overflow: visible !important;
         }
       }
     </style>
     </head>"""
     if "</head>" in enhanced:
         enhanced = enhanced.replace("</head>", extra_css, 1)
+
+    zoom_script = """</div>
+  <script>
+    (function () {
+      var STORE_KEY = 'contract_preview_zoom_v2';
+      var zoomMode = 'fit';
+      var customScale = 1.0;
+
+      try {
+        var saved = window.sessionStorage.getItem(STORE_KEY);
+        if (saved) {
+          var parsed = JSON.parse(saved);
+          if (parsed && parsed.mode) {
+            zoomMode = parsed.mode;
+            if (typeof parsed.scale === 'number') customScale = parsed.scale;
+          }
+        }
+      } catch (e) {}
+
+      function saveZoomState() {
+        try {
+          window.sessionStorage.setItem(STORE_KEY, JSON.stringify({ mode: zoomMode, scale: customScale }));
+        } catch (e) {}
+      }
+
+      function computeFitScale(rawW) {
+        var vp = document.getElementById('previewScrollViewport');
+        var cw = vp ? vp.clientWidth : document.documentElement.clientWidth;
+        var availableW = Math.max(260, cw - 14);
+        var maxFit = cw >= 700 ? 1.38 : 1.0;
+        return Math.min(maxFit, availableW / rawW);
+      }
+
+      function updateActiveButtons(appliedScale) {
+        var bFit = document.getElementById('btnZoomFit');
+        var b100 = document.getElementById('btnZoom100');
+        var b130 = document.getElementById('btnZoom130');
+        [bFit, b100, b130].forEach(function (b) { if (b) b.classList.remove('active'); });
+        if (zoomMode === 'fit' && bFit) {
+          bFit.classList.add('active');
+        } else if (zoomMode === 'fixed' && Math.abs(customScale - 1.0) < 0.02 && b100) {
+          b100.classList.add('active');
+        } else if (zoomMode === 'fixed' && Math.abs(customScale - 1.3) < 0.02 && b130) {
+          b130.classList.add('active');
+        }
+        var badge = document.getElementById('zoomBadge');
+        if (badge) {
+          var pct = Math.round(appliedScale * 100);
+          badge.textContent = (zoomMode === 'fit' ? '화면맞춤 ' : '확대 ') + pct + '%';
+        }
+      }
+
+      function applyZoom() {
+        var slots = document.querySelectorAll('.page-scale-slot');
+        var appliedScale = 1.0;
+        slots.forEach(function (slot) {
+          var page = slot.querySelector('.a4-page');
+          if (!page) return;
+          page.style.transform = 'none';
+          var rawW = page.offsetWidth || 794;
+          var rawH = page.offsetHeight || 1123;
+          var scale = (zoomMode === 'fit') ? computeFitScale(rawW) : Math.max(0.4, Math.min(2.0, customScale));
+          appliedScale = scale;
+          page.style.transform = 'scale(' + scale + ')';
+          page.style.transformOrigin = 'top left';
+          slot.style.width = Math.ceil(rawW * scale) + 'px';
+          slot.style.height = Math.ceil(rawH * scale) + 'px';
+        });
+        updateActiveButtons(appliedScale);
+      }
+
+      function resetForPrint() {
+        document.querySelectorAll('.page-scale-slot').forEach(function (slot) {
+          var page = slot.querySelector('.a4-page');
+          if (page) page.style.transform = 'none';
+          slot.style.width = '100%';
+          slot.style.height = 'auto';
+        });
+      }
+
+      function bindZoomControls() {
+        var bOut = document.getElementById('btnZoomOut');
+        var bFit = document.getElementById('btnZoomFit');
+        var b100 = document.getElementById('btnZoom100');
+        var b130 = document.getElementById('btnZoom130');
+        if (bOut) {
+          bOut.addEventListener('click', function () {
+            var current = (zoomMode === 'fit') ? computeFitScale(794) : customScale;
+            zoomMode = 'fixed';
+            customScale = Math.max(0.4, Math.round((current - 0.15) * 100) / 100);
+            saveZoomState();
+            applyZoom();
+          });
+        }
+        if (bFit) {
+          bFit.addEventListener('click', function () {
+            zoomMode = 'fit';
+            saveZoomState();
+            applyZoom();
+          });
+        }
+        if (b100) {
+          b100.addEventListener('click', function () {
+            zoomMode = 'fixed';
+            customScale = 1.0;
+            saveZoomState();
+            applyZoom();
+          });
+        }
+        if (b130) {
+          b130.addEventListener('click', function () {
+            zoomMode = 'fixed';
+            customScale = 1.3;
+            saveZoomState();
+            applyZoom();
+          });
+        }
+      }
+
+      window.addEventListener('DOMContentLoaded', function () { bindZoomControls(); applyZoom(); });
+      window.addEventListener('load', applyZoom);
+      window.addEventListener('resize', function () { if (zoomMode === 'fit') applyZoom(); });
+      window.addEventListener('beforeprint', resetForPrint);
+      window.addEventListener('afterprint', applyZoom);
+      var vpEl = document.getElementById('previewScrollViewport');
+      if (window.ResizeObserver && vpEl) {
+        new ResizeObserver(function () { if (zoomMode === 'fit') applyZoom(); }).observe(vpEl);
+      }
+      bindZoomControls();
+      applyZoom();
+    })();
+  </script>"""
+
+    script_start = enhanced.find("<script>")
+    script_end = enhanced.rfind("</script>")
+    if script_start != -1 and script_end != -1:
+        enhanced = enhanced[:script_start] + zoom_script + enhanced[script_end + len("</script>"):]
     return enhanced
 
 
@@ -1040,8 +1364,8 @@ def ensure_state_initialized() -> None:
         st.session_state["color_mode"] = "color"
     if "ui_font_scale" not in st.session_state:
         st.session_state["ui_font_scale"] = "보통"
-    if "preview_size_mode" not in st.session_state:
-        st.session_state["preview_size_mode"] = "작게"
+    if "mobile_active_tab" not in st.session_state:
+        st.session_state["mobile_active_tab"] = "input"
     if "draft_mode" not in st.session_state:
         st.session_state["draft_mode"] = False
     if "custom_clauses_by_type" not in st.session_state:
@@ -1772,6 +2096,7 @@ def render_clause_selector(
 
 
 def main() -> None:
+    inject_mobile_pinch_zoom_meta()
     configured_password = get_configured_password()
     if configured_password and not st.session_state.get("authenticated", False):
         render_password_lock_screen(configured_password)
@@ -1876,64 +2201,52 @@ def main() -> None:
         )
     inject_font_scale_css(ui_font_scale)
 
-    # ==================== 상단 제어 바 (1행: 컬러 계약유형 카드 · 색상모드 · 초안 · 예시 · 초기화 · 잠금) ====================
-    ctrl1, ctrl2, ctrl3, ctrl4, ctrl5, ctrl6 = st.columns([2.35, 1.55, 1.05, 0.85, 0.85, 0.6])
-    with ctrl1:
-        with st.container(key="contract_type_card"):
-            st.markdown(
-                f"""
-                <div class="type-card-header">
-                  <span class="type-active-badge" style="background:{theme['primary']};">● {active_type_label}</span>
-                  <span class="type-hint-badge" style="background:{theme['badge_bg']}; color:{theme['primary']}; border:1px solid {theme['primary']};">▼ 클릭하여 계약 유형 변경</span>
-                </div>
-                """,
-                unsafe_allow_html=True,
+    # ==================== 상단 제어 바 (1행: 계약유형 · 색상모드 · 초안 · 예시/초기화) ====================
+    with st.container(key="top_controls_row"):
+        ctrl1, ctrl2, ctrl3, ctrl4 = st.columns([2.5, 1.55, 1.0, 1.55], gap="small")
+        with ctrl1:
+            with st.container(key="contract_type_card"):
+                st.markdown(
+                    f"""
+                    <div class="type-card-header">
+                      <span class="type-active-badge" style="background:{theme['primary']};">● {active_type_label}</span>
+                      <span class="type-hint-badge" style="background:{theme['badge_bg']}; color:{theme['primary']}; border:1px solid {theme['primary']};">▼ 클릭하여 계약 유형 변경</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                selected_type = st.selectbox(
+                    "계약 유형 선택",
+                    options=type_keys,
+                    format_func=lambda k: type_labels[k],
+                    key="contract_type",
+                    label_visibility="collapsed",
+                )
+        with ctrl2:
+            color_mode = st.radio(
+                "출력 색상 모드",
+                options=["color", "bw"],
+                format_func=lambda m: "🎨 컬러" if m == "color" else "🖨️ 흑백",
+                horizontal=True,
+                key="color_mode",
             )
-            selected_type = st.selectbox(
-                "계약 유형 선택",
-                options=type_keys,
-                format_func=lambda k: type_labels[k],
-                key="contract_type",
-                label_visibility="collapsed",
+        with ctrl3:
+            draft_mode = st.toggle(
+                "초안 워터마크",
+                key="draft_mode",
+                help="미리보기 및 출력물 배경에 '사전 검토용 초안 (계약 효력 없음)' 표시",
             )
-    with ctrl2:
-        color_mode = st.radio(
-            "출력 색상 모드",
-            options=["color", "bw"],
-            format_func=lambda m: "🎨 컬러 인쇄용" if m == "color" else "🖨️ 흑백 인쇄용",
-            horizontal=True,
-            key="color_mode",
-        )
-    with ctrl3:
-        st.write("")
-        draft_mode = st.toggle(
-            "초안 워터마크",
-            key="draft_mode",
-            help="미리보기 및 출력물 배경에 '사전 검토용 초안 (계약 효력 없음)' 표시",
-        )
-    with ctrl4:
-        st.write("")
-        if st.button("📋 예시 채우기", use_container_width=True):
-            apply_sample_to_form(selected_type)
-            st.rerun()
-    with ctrl5:
-        st.write("")
-        if st.button("🧹 입력 초기화", use_container_width=True, help="모든 입력값을 빈칸/0원으로 초기화합니다."):
-            reset_form_to_empty()
-            st.rerun()
-    with ctrl6:
-        st.write("")
-        st.button(
-            "🔒 잠금",
-            use_container_width=True,
-            disabled=not bool(configured_password),
-            on_click=lambda: st.session_state.__setitem__("authenticated", False),
-            help=(
-                "화면을 즉시 잠그고 비밀번호 입력 화면으로 돌아갑니다."
-                if configured_password
-                else "APP_PASSWORD가 설정되지 않은 로컬 환경에서는 비밀번호 잠금이 비활성화되어 있습니다."
-            ),
-        )
+        with ctrl4:
+            with st.container(key="quick_tools_row"):
+                qt1, qt2 = st.columns(2, gap="small")
+                with qt1:
+                    if st.button("📋 예시", use_container_width=True, help="선택한 계약 유형의 예시 데이터를 채웁니다."):
+                        apply_sample_to_form(selected_type)
+                        st.rerun()
+                with qt2:
+                    if st.button("🧹 초기화", use_container_width=True, help="모든 입력값을 빈칸/0원으로 초기화합니다."):
+                        reset_form_to_empty()
+                        st.rerun()
 
     type_cfg = clauses_lib[selected_type]
     meta = get_type_meta(selected_type)
@@ -1943,20 +2256,59 @@ def main() -> None:
     current_cid = st.session_state["current_contract_id"]
     current_status = st.session_state.get("current_contract_status", "unsaved")
 
-    # 상단 제어 바 (2행: 문서 ID + 임시저장 / 최종 누적 저장)
+    # 상단 제어 바 (2행: 문서 ID + 모바일에서도 가로 3등분 1줄 [🔒 잠금 | 💾 임시저장 | ✅ 최종 저장])
     status_label_map = {"unsaved": "⚪ 미저장 새 문서", "draft": "🟡 임시저장됨", "completed": "🟢 최종 저장 완료"}
-    save_bar1, save_bar2, save_bar3 = st.columns([2.5, 1.1, 1.2])
-    with save_bar1:
+    save_bar_left, save_bar_right = st.columns([2.2, 2.8], gap="small")
+    with save_bar_left:
         st.markdown(
             f'<div class="doc-id-pill">문서 ID: {current_cid} &nbsp;|&nbsp; {status_label_map.get(current_status, "⚪ 미저장")}</div>',
             unsafe_allow_html=True,
         )
-    with save_bar2:
-        save_draft_clicked = st.button("💾 임시저장", use_container_width=True)
-    with save_bar3:
-        save_final_clicked = st.button("✅ 최종 누적 저장", use_container_width=True, type="primary")
+    with save_bar_right:
+        with st.container(key="action_buttons_row"):
+            act1, act2, act3 = st.columns(3, gap="small")
+            with act1:
+                st.button(
+                    "🔒 잠금",
+                    use_container_width=True,
+                    disabled=not bool(configured_password),
+                    on_click=lambda: st.session_state.__setitem__("authenticated", False),
+                    help=(
+                        "화면을 즉시 잠그고 비밀번호 입력 화면으로 돌아갑니다."
+                        if configured_password
+                        else "APP_PASSWORD가 설정되지 않은 로컬 환경에서는 비밀번호 잠금이 비활성화되어 있습니다."
+                    ),
+                )
+            with act2:
+                save_draft_clicked = st.button("💾 임시저장", use_container_width=True)
+            with act3:
+                save_final_clicked = st.button("✅ 최종 저장", use_container_width=True, type="primary")
 
     live_form: dict[str, Any] = dict(st.session_state["_form_data"])
+
+    # ==================== 모바일 전용 [✏️ 계약서 입력 / 📄 계약서 크게 보기] 전환 바 ====================
+    active_mob_tab = st.session_state.get("mobile_active_tab", "input")
+    with st.container(key="mobile_view_switch"):
+        mt1, mt2 = st.columns(2, gap="small")
+        with mt1:
+            if st.button(
+                "✏️ 계약서 입력",
+                key="btn_mob_tab_input",
+                type="primary" if active_mob_tab == "input" else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state["mobile_active_tab"] = "input"
+                st.rerun()
+        with mt2:
+            if st.button(
+                "📄 계약서 크게 보기",
+                key="btn_mob_tab_preview",
+                type="primary" if active_mob_tab == "preview" else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state["mobile_active_tab"] = "preview"
+                st.rerun()
+    inject_mobile_tab_css(active_mob_tab)
 
     # ==================== 좌측 콤팩트 입력 폼(3.5) / 우측 대형 실시간 A4 미리보기(6.5) ====================
     workspace_box = st.container(key="workspace_split")
@@ -2643,28 +2995,14 @@ def main() -> None:
                     tag_md = "\n".join(f"- `{tag}` : {desc}" for tag, desc in HWPX_PLACEHOLDER_GUIDE)
                     st.markdown(tag_md)
 
-        # 미리보기 크기 조절 바 (모바일에서는 상단 미리보기 바로 아래에 배치)
-        with st.container(key="preview_toggle_box"):
-            preview_mode = st.radio(
-                "📄 미리보기",
-                options=["크게", "작게", "숨기기"],
-                horizontal=True,
-                key="preview_size_mode",
-            )
-        inject_preview_layout_css(preview_mode)
-
-        # 실시간 A4 미리보기 iframe (숨기기 선택 시 생략)
-        if preview_mode != "숨기기":
-            with st.container(key="preview_iframe_box"):
-                live_preview_html = _enhance_live_preview_html(printable_html, preview_mode)
-                if context["is_annex"]:
-                    preview_height = 2650 if preview_mode == "크게" else 2300
-                else:
-                    preview_height = 1480 if preview_mode == "크게" else 1320
-                if hasattr(st, "iframe"):
-                    st.iframe(live_preview_html, height=preview_height)
-                else:
-                    components.html(live_preview_html, height=preview_height, scrolling=True)
+        # 실시간 A4 미리보기 iframe (확대/축소 [축소 -][화면맞춤][크게 100%][더 크게 130%] + 4방향 터치 스크롤 지원)
+        with st.container(key="preview_iframe_box"):
+            live_preview_html = _enhance_live_preview_html(printable_html)
+            preview_height = 2450 if context["is_annex"] else 1380
+            if hasattr(st, "iframe"):
+                st.iframe(live_preview_html, height=preview_height)
+            else:
+                components.html(live_preview_html, height=preview_height, scrolling=True)
 
 
 if __name__ == "__main__":
