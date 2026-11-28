@@ -30,20 +30,20 @@ DEFAULT_API_TIMEOUT_SECONDS = 60
 RETRY_DELAY_SECONDS = 1.5
 MAX_OCR_OUTPUT_TOKENS = 1024
 MAX_FALLBACK_MODELS = 8
-GEMINI_OCR_MODEL = "gemini-2.5-flash"
+GEMINI_OCR_MODEL = "gemini-3.5-flash"
 PREFERRED_OCR_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-3.1-pro-preview",
-    "gemini-flash-latest",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.8-flash",
 ]
 PREFERRED_LEGAL_CLAUSE_MODELS = [
-    "gemini-3.1-pro-preview",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-flash-latest",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.8-flash",
 ]
 DEFAULT_FALLBACK_MODELS = PREFERRED_OCR_MODELS[1:]
 _EXCLUDED_MODEL_KEYWORDS = (
@@ -58,6 +58,9 @@ _EXCLUDED_MODEL_KEYWORDS = (
     "computer-use",
     "deep-research",
     "image-generation",
+    "-image",
+    "nano-banana",
+    "omni-",
     "native-audio",
     "gemma",
 )
@@ -455,7 +458,7 @@ def extract_contract_fields_from_documents(
         return genai.Client(api_key=api_key, http_options=http_opts), http_opts
 
     def _call_model(model_name: str, limit_sec: float) -> Any:
-        client, http_opts = _make_client(limit_sec)
+        client, _ = _make_client(limit_sec)
         return client.models.generate_content(
             model=model_name,
             contents=parts,
@@ -464,7 +467,6 @@ def extract_contract_fields_from_documents(
                 max_output_tokens=MAX_OCR_OUTPUT_TOKENS,
                 response_mime_type="application/json",
                 response_schema=ExtractedDocumentFields,
-                http_options=http_opts,
             ),
         )
 
@@ -518,18 +520,20 @@ def extract_contract_fields_from_documents(
 
         def _rank(name: str) -> tuple[int, str]:
             lo = name.lower()
-            if "2.5-flash" in lo and "lite" not in lo:
+            if "3.5-flash" in lo and "lite" not in lo:
                 tier = 0
-            elif "2.0-flash" in lo:
+            elif "3.6-flash" in lo:
                 tier = 1
-            elif "flash-lite" in lo:
+            elif "3.5-flash-lite" in lo:
                 tier = 2
-            elif "flash" in lo:
+            elif "3.1-flash-lite" in lo:
                 tier = 3
-            elif "pro" in lo:
+            elif "flash" in lo:
                 tier = 4
-            else:
+            elif "pro" in lo:
                 tier = 5
+            else:
+                tier = 6
             return (tier, name)
 
         discovered.sort(key=_rank)
@@ -605,9 +609,10 @@ def extract_contract_fields_from_documents(
 
     if response is None:
         result["error_type"] = "ALL_MODELS_FAILED"
+        detail_lines = "\n".join(f"- {err}" for err in attempt_errors)
         result["message"] = (
-            f"시도한 모든 Gemini 모델({len(tried_models)}개: {', '.join(tried_models)})이 "
-            "시간초과(504), 혼잡(503/429) 또는 미지원(404)으로 실패했습니다. 잠시 후 다시 시도해 주세요."
+            f"시도한 모든 Gemini 모델({len(tried_models)}개: {', '.join(tried_models)}) 호출에 실패했습니다.\n"
+            f"[상세 오류 내역]\n{detail_lines}"
         )
         result["raw_response_text"] = "\n".join(attempt_errors)
         return result
@@ -712,7 +717,7 @@ def generate_legal_clauses_from_text(
     party2_label: str = "매수인",
     timeout_seconds: int = DEFAULT_API_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
-    """사용자가 구어체로 입력한 현장 합의 내용을 Gemini 3.1 Pro(실패 시 2.5 Flash 등 자동 우회·60초 타임아웃)로 전문 변호사 수준 특약 1~2개로 변환한다."""
+    """사용자가 구어체로 입력한 현장 합의 내용을 Gemini 3.5 Flash(실패 시 3.6 Flash·3.5 Flash Lite 등 자동 우회·60초 타임아웃)로 전문 변호사 수준 특약 1~2개로 변환한다."""
     note = (user_note or "").strip()
     if not note:
         return {"ok": False, "clauses": [], "message": "변환할 현장 합의 내용을 먼저 입력해 주세요."}
@@ -751,7 +756,6 @@ def generate_legal_clauses_from_text(
                 max_output_tokens=1536,
                 response_mime_type="application/json",
                 response_schema=GeneratedLegalClauses,
-                http_options=http_opts,
             ),
         )
 
@@ -775,14 +779,38 @@ def generate_legal_clauses_from_text(
                 lo = short.lower()
                 if not lo.startswith("gemini-") or any(kw in lo for kw in _EXCLUDED_MODEL_KEYWORDS):
                     continue
+                actions = getattr(m, "supported_actions", None) or []
+                if actions and not any("generatecontent" in str(a).lower() for a in actions):
+                    continue
                 if short not in exclude and short not in found:
                     found.append(short)
-        except Exception:
-            pass
+        except Exception as list_exc:
+            attempt_errors.append(f"models.list(): {type(list_exc).__name__}: {list_exc}")
+
+        def _rank(name: str) -> tuple[int, str]:
+            lo = name.lower()
+            if "3.5-flash" in lo and "lite" not in lo:
+                tier = 0
+            elif "3.6-flash" in lo:
+                tier = 1
+            elif "3.5-flash-lite" in lo:
+                tier = 2
+            elif "3.1-flash-lite" in lo:
+                tier = 3
+            elif "3." in lo and "flash" in lo:
+                tier = 4
+            elif "flash" in lo and "2.0" not in lo and "2.5" not in lo:
+                tier = 5
+            else:
+                tier = 6
+            return (tier, name)
+
+        found.sort(key=_rank)
         return found[:4]
 
     candidate_queue: list[str] = list(PREFERRED_LEGAL_CLAUSE_MODELS)
-    tried: set[str] = set()
+    tried: list[str] = []
+    tried_set: set[str] = set()
     attempt_errors: list[str] = []
     discovered_once = False
     used_model = ""
@@ -792,9 +820,10 @@ def generate_legal_clauses_from_text(
     while idx < len(candidate_queue):
         model_name = candidate_queue[idx]
         idx += 1
-        if model_name in tried:
+        if model_name in tried_set:
             continue
-        tried.add(model_name)
+        tried_set.add(model_name)
+        tried.append(model_name)
         try:
             response = _run_timeout(
                 lambda m=model_name: _call_clause_model(m, float(timeout_seconds)),
@@ -803,16 +832,17 @@ def generate_legal_clauses_from_text(
             used_model = model_name
             break
         except FuturesTimeoutError:
-            attempt_errors.append(f"{model_name}: TIMEOUT({timeout_seconds}s)")
+            attempt_errors.append(f"{model_name}: TimeoutError ({timeout_seconds}초 응답 초과)")
             if idx >= len(candidate_queue) and not discovered_once:
                 discovered_once = True
-                candidate_queue.extend(_discover_extra_models(tried))
+                candidate_queue.extend(_discover_extra_models(tried_set))
             if idx < len(candidate_queue):
                 time.sleep(RETRY_DELAY_SECONDS)
             continue
         except Exception as exc:
-            msg_u = f"{type(exc).__name__}: {exc}".upper()
-            attempt_errors.append(f"{model_name}: {exc}")
+            err_detail = f"{type(exc).__name__}: {exc}"
+            msg_u = err_detail.upper()
+            attempt_errors.append(f"{model_name}: {err_detail}")
             is_retryable = any(
                 k in msg_u
                 for k in ("504", "DEADLINE", "TIMEOUT", "503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "502", "500", "404", "NOT_FOUND")
@@ -820,7 +850,7 @@ def generate_legal_clauses_from_text(
             if is_retryable:
                 if idx >= len(candidate_queue) and not discovered_once:
                     discovered_once = True
-                    candidate_queue.extend(_discover_extra_models(tried))
+                    candidate_queue.extend(_discover_extra_models(tried_set))
                 if idx < len(candidate_queue):
                     if "404" not in msg_u and "NOT_FOUND" not in msg_u:
                         time.sleep(RETRY_DELAY_SECONDS)
@@ -829,27 +859,34 @@ def generate_legal_clauses_from_text(
                 return {
                     "ok": False,
                     "clauses": [],
-                    "message": f"AI 특약 생성 중 오류가 발생했습니다({model_name}): {type(exc).__name__}: {exc}",
+                    "error_details": "\n".join(attempt_errors),
+                    "message": f"AI 특약 생성 중 오류가 발생했습니다({model_name}): {err_detail}",
                 }
 
     if response is None:
+        detail_lines = "\n".join(f"- {err}" for err in attempt_errors)
         return {
             "ok": False,
             "clauses": [],
+            "error_details": "\n".join(attempt_errors),
             "message": (
-                f"시도한 모든 Gemini 모델({', '.join(tried)})이 일시적 오류·시간초과로 응답하지 못했습니다. "
-                "잠시 후 다시 시도해 주세요."
+                f"시도한 모든 Gemini 모델({len(tried)}개: {', '.join(tried)}) 호출에 실패했습니다.\n"
+                f"[실제 발생한 오류 내역]\n{detail_lines}"
             ),
         }
 
     try:
         parsed = _parse_json_strict(response.text or "")
         raw_list = parsed.get("clauses", [])
-        cleaned = [
-            re.sub(r"^\s*(?:제\s*\d+\s*항|[\d①-⑩]+[\.\)]|[-•*])\s*", "", str(item).strip())
-            for item in raw_list
-            if str(item).strip()
-        ][:2]
+        cleaned = []
+        for item in raw_list:
+            text_item = str(item).strip()
+            if not text_item:
+                continue
+            text_item = re.sub(r"^\s*(?:제\s*\d+\s*항|[\d①-⑩]+[\.\)]|[-•*])\s*", "", text_item)
+            text_item = re.sub(r"\\+(?=\d)", "₩", text_item)
+            cleaned.append(text_item)
+        cleaned = cleaned[:2]
         if not cleaned:
             return {"ok": False, "clauses": [], "message": "AI가 유효한 특약 문구를 생성하지 못했습니다. 내용을 조금 더 구체적으로 입력해 주세요."}
         primary_model = PREFERRED_LEGAL_CLAUSE_MODELS[0]
