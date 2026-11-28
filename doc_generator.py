@@ -613,7 +613,7 @@ def create_docx_template(
 
     p_ax_t = doc.add_paragraph()
     p_ax_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_ax_t = p_ax_t.add_run("[별 지] 특 약 사 항")
+    r_ax_t = p_ax_t.add_run("[별지] 특약사항")
     r_ax_t.bold = True
     r_ax_t.font.size = Pt(15)
     r_ax_t.font.color.rgb = RGBColor(*pal["title_rgb"])

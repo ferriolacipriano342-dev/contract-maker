@@ -1,7 +1,7 @@
 {
   "nursing_home_transfer": {
     "label": "🏥 [요양시설] 요양원 양도·양수",
-    "form_title": "노 인 요 양 시 설  양 도 · 양 수  계 약 서",
+    "form_title": "노인요양시설 양도·양수 계약서",
     "template_key": "nursing_home_transfer",
     "clauses": [
       {
@@ -95,7 +95,7 @@
   },
   "apartment_sale": {
     "label": "🏢 [주거] 아파트 매매",
-    "form_title": "아 파 트  매 매  계 약 서",
+    "form_title": "아파트 매매 계약서",
     "template_key": "apartment_sale",
     "clauses": [
       {
@@ -170,7 +170,7 @@
   },
   "real_estate_sale": {
     "label": "🏠 [주거] 주택 매매",
-    "form_title": "주 택  매 매  계 약 서",
+    "form_title": "주택 매매 계약서",
     "template_key": "real_estate_sale",
     "clauses": [
       {
@@ -240,7 +240,7 @@
   },
   "housing_jeonse": {
     "label": "🏠 [주거] 주택 전세",
-    "form_title": "주 택  전 세  계 약 서",
+    "form_title": "주택 전세 계약서",
     "template_key": "housing_jeonse",
     "clauses": [
       {
@@ -361,7 +361,7 @@
   },
   "housing_wolse": {
     "label": "🏠 [주거] 주택 월세",
-    "form_title": "주 택  임 대 차 (월 세)  계 약 서",
+    "form_title": "주택 임대차(월세) 계약서",
     "template_key": "housing_wolse",
     "clauses": [
       {
@@ -417,7 +417,7 @@
   },
   "commercial_sale": {
     "label": "🏪 [상가] 상가 매매",
-    "form_title": "상 가 건 물  매 매  계 약 서",
+    "form_title": "상가건물 매매 계약서",
     "template_key": "commercial_sale",
     "clauses": [
       {
@@ -479,7 +479,7 @@
   },
   "commercial_lease": {
     "label": "🏪 [상가] 상가 임대차",
-    "form_title": "상 가 건 물  임 대 차  계 약 서",
+    "form_title": "상가건물 임대차 계약서",
     "template_key": "commercial_lease",
     "clauses": [
       {
@@ -538,7 +538,7 @@
   },
   "premium_rights": {
     "label": "🏪 [상가] 권리금 계약",
-    "form_title": "상 가  권 리 금  계 약 서",
+    "form_title": "상가 권리금 계약서",
     "template_key": "premium_rights",
     "clauses": [
       {
@@ -594,7 +594,7 @@
   },
   "farmland_sale": {
     "label": "🌾 [토지] 농지 매매",
-    "form_title": "농 지  매 매  계 약 서",
+    "form_title": "농지 매매 계약서",
     "template_key": "farmland_sale",
     "clauses": [
       {
@@ -675,7 +675,7 @@
   },
   "land_sale": {
     "label": "⛰️ [토지] 토지 매매",
-    "form_title": "토 지  매 매  계 약 서",
+    "form_title": "토지 매매 계약서",
     "template_key": "land_sale",
     "clauses": [
       {
