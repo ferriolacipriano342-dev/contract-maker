@@ -7,77 +7,157 @@ import re
 from datetime import date, datetime
 from typing import Any
 
-# A4 1장 본문 특약란 최대 허용 줄 수 (초과 시 별지 자동 분리)
+# A4 1장 본문 특약란 최대 허용 줄 수 / 항목 수 (초과 시 별지 자동 분리)
 MAX_INLINE_CLAUSE_LINES = 10
+MAX_INLINE_CLAUSE_COUNT = 5
 CHARS_PER_LINE = 46
+
+# 모던·디지털 A4 서식 카테고리별 시그니처 컬러 테마
+DOC_SIGNATURE_PALETTES: dict[str, dict[str, str]] = {
+    "요양시설": {
+        "primary": "#1E3A5F",
+        "accent": "#B48A3E",
+        "tint": "#EDF2F8",
+        "money_bg": "#FBF8F1",
+        "doc_category": "요양시설 양도·양수",
+    },
+    "주거": {
+        "primary": "#1D4ED8",
+        "accent": "#3B82F6",
+        "tint": "#EFF6FF",
+        "money_bg": "#EFF6FF",
+        "doc_category": "주거용 부동산",
+    },
+    "상가": {
+        "primary": "#047857",
+        "accent": "#10B981",
+        "tint": "#ECFDF5",
+        "money_bg": "#ECFDF5",
+        "doc_category": "상업용 부동산",
+    },
+    "토지": {
+        "primary": "#15803D",
+        "accent": "#22C55E",
+        "tint": "#F0FDF4",
+        "money_bg": "#F0FDF4",
+        "doc_category": "토지·농지 매매",
+    },
+}
 
 _DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
 _SUB_UNITS = ["", "십", "백", "천"]
 _GROUP_UNITS = ["", "만", "억", "조", "경"]
 
-# 계약 유형별 메타데이터 (당사자 호칭, 주요 대금 라벨, 서식 파일명)
+# 계약 유형별 메타데이터 (요양시설 1순위 + 동종 부동산 순서 정렬, 당사자 호칭, 주요 대금 라벨, 서식 파일명)
 CONTRACT_TYPE_META: dict[str, dict[str, str]] = {
-    "housing_jeonse": {
-        "label": "주택 전세",
-        "form_title": "아 파 트  전 세  계 약 서",
-        "party1": "임대인",
-        "party2": "임차인",
-        "amount_label": "보증금",
-        "template_name": "housing_jeonse.html",
-    },
-    "real_estate_sale": {
-        "label": "부동산 매매",
-        "form_title": "부 동 산  매 매  계 약 서",
-        "party1": "매도인",
-        "party2": "매수인",
-        "amount_label": "매매대금",
-        "template_name": "real_estate_sale.html",
-    },
-    "land_sale": {
-        "label": "토지 매매",
-        "form_title": "토 지  매 매  계 약 서",
-        "party1": "매도인",
-        "party2": "매수인",
-        "amount_label": "매매대금",
-        "template_name": "land_sale.html",
-    },
-    "housing_wolse": {
-        "label": "주택 월세",
-        "form_title": "주 택  임 대 차 (월 세)  계 약 서",
-        "party1": "임대인",
-        "party2": "임차인",
-        "amount_label": "보증금",
-        "template_name": "housing_wolse.html",
-    },
-    "commercial_lease": {
-        "label": "상가 임대차",
-        "form_title": "상 가 건 물  임 대 차  계 약 서",
-        "party1": "임대인",
-        "party2": "임차인",
-        "amount_label": "보증금",
-        "template_name": "commercial_lease.html",
-    },
     "nursing_home_transfer": {
-        "label": "요양원 양도양수",
+        "label": "🏥 [요양시설] 요양원 양도·양수",
+        "short_label": "요양원 양도·양수",
+        "category": "요양시설",
         "form_title": "노 인 요 양 시 설  양 도 · 양 수  계 약 서",
         "party1": "양도인",
         "party2": "양수인",
         "amount_label": "총 양도대금",
         "template_name": "nursing_home_transfer.html",
     },
+    "apartment_sale": {
+        "label": "🏢 [주거] 아파트 매매",
+        "short_label": "아파트 매매",
+        "category": "주거",
+        "form_title": "아 파 트  매 매  계 약 서",
+        "party1": "매도인",
+        "party2": "매수인",
+        "amount_label": "매매대금",
+        "template_name": "real_estate_sale.html",
+    },
+    "real_estate_sale": {
+        "label": "🏠 [주거] 주택 매매",
+        "short_label": "주택 매매",
+        "category": "주거",
+        "form_title": "주 택  매 매  계 약 서",
+        "party1": "매도인",
+        "party2": "매수인",
+        "amount_label": "매매대금",
+        "template_name": "real_estate_sale.html",
+    },
+    "housing_jeonse": {
+        "label": "🏠 [주거] 주택 전세",
+        "short_label": "주택 전세",
+        "category": "주거",
+        "form_title": "주 택  전 세  계 약 서",
+        "party1": "임대인",
+        "party2": "임차인",
+        "amount_label": "보증금",
+        "template_name": "housing_jeonse.html",
+    },
+    "housing_wolse": {
+        "label": "🏠 [주거] 주택 월세",
+        "short_label": "주택 월세",
+        "category": "주거",
+        "form_title": "주 택  임 대 차 (월 세)  계 약 서",
+        "party1": "임대인",
+        "party2": "임차인",
+        "amount_label": "보증금",
+        "template_name": "housing_wolse.html",
+    },
+    "commercial_sale": {
+        "label": "🏪 [상가] 상가 매매",
+        "short_label": "상가 매매",
+        "category": "상가",
+        "form_title": "상 가 건 물  매 매  계 약 서",
+        "party1": "매도인",
+        "party2": "매수인",
+        "amount_label": "매매대금",
+        "template_name": "real_estate_sale.html",
+    },
+    "commercial_lease": {
+        "label": "🏪 [상가] 상가 임대차",
+        "short_label": "상가 임대차",
+        "category": "상가",
+        "form_title": "상 가 건 물  임 대 차  계 약 서",
+        "party1": "임대인",
+        "party2": "임차인",
+        "amount_label": "보증금",
+        "template_name": "commercial_lease.html",
+    },
     "premium_rights": {
-        "label": "권리금 계약",
+        "label": "🏪 [상가] 권리금 계약",
+        "short_label": "권리금 계약",
+        "category": "상가",
         "form_title": "상 가  권 리 금  계 약 서",
         "party1": "양도인",
         "party2": "양수인",
         "amount_label": "권리금 총액",
         "template_name": "premium_rights.html",
     },
+    "farmland_sale": {
+        "label": "🌾 [토지] 농지 매매",
+        "short_label": "농지 매매",
+        "category": "토지",
+        "form_title": "농 지  매 매  계 약 서",
+        "party1": "매도인",
+        "party2": "매수인",
+        "amount_label": "매매대금",
+        "template_name": "land_sale.html",
+    },
+    "land_sale": {
+        "label": "⛰️ [토지] 토지 매매",
+        "short_label": "토지 매매",
+        "category": "토지",
+        "form_title": "토 지  매 매  계 약 서",
+        "party1": "매도인",
+        "party2": "매수인",
+        "amount_label": "매매대금",
+        "template_name": "land_sale.html",
+    },
 }
+
+SALE_BUILDING_TYPES = ("apartment_sale", "real_estate_sale", "commercial_sale")
+SALE_LAND_TYPES = ("farmland_sale", "land_sale")
 
 
 def get_type_meta(contract_type: str) -> dict[str, str]:
-    return CONTRACT_TYPE_META.get(contract_type, CONTRACT_TYPE_META["housing_jeonse"])
+    return CONTRACT_TYPE_META.get(contract_type, CONTRACT_TYPE_META["nursing_home_transfer"])
 
 
 def parse_int(value: Any, default: int = 0) -> int:
@@ -232,8 +312,8 @@ def validate_amounts(
     down = parse_int(down_payment)
     interim = parse_int(interim_payment)
     bal = parse_int(balance)
-    loan = parse_int(loan_assumption) if contract_type in ("real_estate_sale", "land_sale") else 0
-    lease_dep = parse_int(lease_deposit_assumption) if contract_type == "real_estate_sale" else 0
+    loan = parse_int(loan_assumption) if contract_type in (SALE_BUILDING_TYPES + SALE_LAND_TYPES) else 0
+    lease_dep = parse_int(lease_deposit_assumption) if contract_type in SALE_BUILDING_TYPES else 0
     escrow = parse_int(escrow_amount) if contract_type == "nursing_home_transfer" else 0
 
     if dep <= 0:
@@ -295,10 +375,10 @@ def format_date_parts(value: Any, zero_pad: bool = False) -> tuple[str, str, str
 
 
 def format_date_kr(value: Any, zero_pad: bool = True) -> str:
-    """날짜를 '2026년 03월 28일' 형식으로 포맷한다."""
+    """날짜를 '2026년 03월 28일' 형식으로 포맷한다. 미입력 시 수기용 '20    년    월    일'."""
     y, m, d = format_date_parts(value, zero_pad=zero_pad)
     if not y:
-        return "    년   월   일"
+        return "20    년    월    일"
     return f"{y}년 {m}월 {d}일"
 
 
@@ -382,18 +462,72 @@ def estimate_clause_lines(text: str, chars_per_line: int = CHARS_PER_LINE) -> in
     return total
 
 
+def resolve_smart_clause_placeholders(text: str, form_data: dict[str, Any]) -> str:
+    """특약 문구 내 {잔금일}, {계약일}, {매매대금}, {보증금} 등 스마트 변수를 본문 입력값으로 실시간 자동 치환한다."""
+    if not text or "{" not in text:
+        return text
+
+    dep = parse_int(form_data.get("deposit", 0))
+    down = parse_int(form_data.get("down_payment", 0))
+    interim = parse_int(form_data.get("interim_payment", 0))
+    bal = parse_int(form_data.get("balance", 0))
+    rent = parse_int(form_data.get("monthly_rent", 0))
+
+    blank_mode = bool(form_data.get("blank_form_mode", False))
+    bal_date_str = "20  년  월  일" if blank_mode else format_date_kr(form_data.get("balance_date"), zero_pad=True)
+    con_date_str = "20  년  월  일" if blank_mode else format_date_kr(form_data.get("contract_date"), zero_pad=True)
+    hand_date_str = "20  년  월  일" if blank_mode else format_date_kr(form_data.get("handover_date"), zero_pad=True)
+    end_date_str = "20  년  월  일" if blank_mode else format_date_kr(form_data.get("lease_end_date"), zero_pad=True)
+
+    dep_fmt = f"{dep:,}" if dep > 0 else ""
+    smart_map: dict[str, str] = {
+        "잔금일": bal_date_str,
+        "잔금지급일": bal_date_str,
+        "계약일": con_date_str,
+        "계약작성일": con_date_str,
+        "인도일": hand_date_str,
+        "만료일": end_date_str,
+        "매매대금": dep_fmt,
+        "보증금": dep_fmt,
+        "양도대금": dep_fmt,
+        "권리금": dep_fmt,
+        "계약금": f"{down:,}" if down > 0 else "",
+        "중도금": f"{interim:,}" if interim > 0 else "",
+        "잔금": f"{bal:,}" if bal > 0 else "",
+        "월세": f"{rent:,}" if rent > 0 else "",
+        "월차임": f"{rent:,}" if rent > 0 else "",
+        "소재지": clean_str(form_data.get("address")),
+        "임대인": clean_str(form_data.get("lessor_name")),
+        "매도인": clean_str(form_data.get("lessor_name")),
+        "양도인": clean_str(form_data.get("lessor_name")),
+        "임차인": clean_str(form_data.get("lessee_name")),
+        "매수인": clean_str(form_data.get("lessee_name")),
+        "양수인": clean_str(form_data.get("lessee_name")),
+    }
+
+    def _sub(match: re.Match[str]) -> str:
+        key = match.group(1).strip()
+        if key in smart_map and smart_map[key]:
+            return smart_map[key]
+        return match.group(0)
+
+    return re.sub(r"\{([^{}]+)\}", _sub, text)
+
+
 def format_numbered_clauses(
     clauses: list[str],
     attachment_note: str = "",
     deposit_account: str = "",
 ) -> tuple[str, int, bool]:
-    """선택된 특약 리스트를 번호 목록 문자열로 조합하고 별지 분리 여부를 판정한다."""
+    """선택된 특약 리스트를 번호 목록 문자열로 조합하고 별지 분리 여부(5항 초과 또는 10줄 초과)를 판정한다."""
     lines: list[str] = []
     idx = 1
+    clause_count = 0
     for clause in clauses:
         cleaned = clause.strip()
         if not cleaned:
             continue
+        clause_count += 1
         if re.match(r"^\d+[\.\)]\s+", cleaned):
             lines.append(cleaned)
         else:
@@ -407,7 +541,7 @@ def format_numbered_clauses(
 
     full_text = "\n".join(lines)
     est_lines = estimate_clause_lines(full_text)
-    is_annex = est_lines > MAX_INLINE_CLAUSE_LINES
+    is_annex = (clause_count > MAX_INLINE_CLAUSE_COUNT) or (est_lines > MAX_INLINE_CLAUSE_LINES)
     return full_text, est_lines, is_annex
 
 
@@ -424,12 +558,12 @@ def build_contract_context(form_data: dict[str, Any]) -> dict[str, Any]:
     # 유형별 확장 금액 필드
     loan_assumption = (
         parse_int(form_data.get("loan_assumption", 0))
-        if contract_type in ("real_estate_sale", "land_sale")
+        if contract_type in (SALE_BUILDING_TYPES + SALE_LAND_TYPES)
         else 0
     )
     lease_deposit_assumption = (
         parse_int(form_data.get("lease_deposit_assumption", 0))
-        if contract_type == "real_estate_sale"
+        if contract_type in SALE_BUILDING_TYPES
         else 0
     )
     monthly_rent = parse_int(form_data.get("monthly_rent", 0))
@@ -451,22 +585,41 @@ def build_contract_context(form_data: dict[str, Any]) -> dict[str, Any]:
         escrow_amount=escrow_amount,
     )
 
-    interim_y, interim_m, interim_d = format_date_parts(form_data.get("interim_date"))
-    balance_y, balance_m, balance_d = format_date_parts(form_data.get("balance_date"))
-    contract_y, contract_m, contract_d = format_date_parts(form_data.get("contract_date"))
+    blank_form_mode = bool(form_data.get("blank_form_mode", False))
 
-    handover_date = parse_date(form_data.get("handover_date"))
-    lease_end_date = parse_date(form_data.get("lease_end_date"))
-    lease_duration = calculate_lease_duration(handover_date, lease_end_date)
+    if blank_form_mode:
+        interim_y, interim_m, interim_d = "20  ", "", ""
+        balance_y, balance_m, balance_d = "20  ", "", ""
+        contract_y, contract_m, contract_d = "", "", ""
+        handover_date = None
+        lease_end_date = None
+        lease_duration = ""
+    else:
+        interim_y, interim_m, interim_d = format_date_parts(form_data.get("interim_date"))
+        balance_y, balance_m, balance_d = format_date_parts(form_data.get("balance_date"))
+        contract_y, contract_m, contract_d = format_date_parts(form_data.get("contract_date"))
+        handover_date = parse_date(form_data.get("handover_date"))
+        lease_end_date = parse_date(form_data.get("lease_end_date"))
+        lease_duration = calculate_lease_duration(handover_date, lease_end_date)
 
-    rendered_clauses: list[str] = list(form_data.get("rendered_clauses", []))
-    extra_parcels = clean_str(form_data.get("extra_parcels"))
-    if contract_type == "land_sale" and extra_parcels:
-        rendered_clauses.append(f"[다필지 추가 대상 토지]\n{extra_parcels}")
+    extra_parcels = "" if blank_form_mode else clean_str(form_data.get("extra_parcels"))
+    if blank_form_mode:
+        rendered_clauses: list[str] = []
+        attachment_note = ""
+        deposit_account = ""
+    else:
+        raw_clauses = list(form_data.get("rendered_clauses", []))
+        rendered_clauses = [
+            resolve_smart_clause_placeholders(str(c), form_data)
+            for c in raw_clauses
+            if str(c).strip()
+        ]
+        if contract_type in SALE_LAND_TYPES and extra_parcels:
+            rendered_clauses.append(f"[다필지 추가 대상 토지]\n{extra_parcels}")
+        attachment_note = clean_str(form_data.get("attachment_note"))
+        deposit_account = clean_str(form_data.get("deposit_account"))
 
-    attachment_note = clean_str(form_data.get("attachment_note"))
-    deposit_account = clean_str(form_data.get("deposit_account"))
-
+    clause_count = len([c for c in rendered_clauses if c.strip()])
     land_area_str = clean_str(form_data.get("land_area"))
     land_area_pyeong = format_pyeong(land_area_str)
     price_per_pyeong = format_price_per_pyeong(deposit, land_area_str)
@@ -478,10 +631,7 @@ def build_contract_context(form_data: dict[str, Any]) -> dict[str, Any]:
     )
 
     if is_annex:
-        body_clauses_text = (
-            "특약사항 별지 참조\n"
-            f"(총 {len([c for c in rendered_clauses if c.strip()])}개 특약 조항 — 2페이지 [별지] 특약사항 첨부)"
-        )
+        body_clauses_text = f"※ 상세 특약은 첨부 [별지] 특약사항(총 {clause_count}항) 참조"
         body_clauses_lines = body_clauses_text.splitlines()
         annex_clauses_lines = full_clauses_text.splitlines()
     else:
@@ -491,9 +641,19 @@ def build_contract_context(form_data: dict[str, Any]) -> dict[str, Any]:
 
     use_co_broker = bool(form_data.get("use_co_broker", False))
     color_mode = "bw" if clean_str(form_data.get("color_mode")) == "bw" else "color"
+    cat_key = meta.get("category", "주거")
+    sig_pal = DOC_SIGNATURE_PALETTES.get(cat_key, DOC_SIGNATURE_PALETTES["주거"])
+    doc_id = clean_str(form_data.get("doc_id")) or "DOC-STANDARD"
 
     context: dict[str, Any] = {
-        # 메타 / 상태
+        # 메타 / 상태 / 모던 디지털 테마
+        "doc_id": doc_id,
+        "doc_category": sig_pal["doc_category"],
+        "doc_primary": sig_pal["primary"],
+        "doc_accent": sig_pal["accent"],
+        "doc_tint": sig_pal["tint"],
+        "doc_money_bg": sig_pal["money_bg"],
+        "clause_count": clause_count,
         "contract_type": contract_type,
         "contract_type_label": clean_str(form_data.get("contract_type_label")) or meta["label"],
         "form_title": clean_str(form_data.get("form_title")) or meta["form_title"],
@@ -503,6 +663,7 @@ def build_contract_context(form_data: dict[str, Any]) -> dict[str, Any]:
         "color_mode": color_mode,
         "is_color_mode": color_mode == "color",
         "draft_mode": bool(form_data.get("draft_mode", False)),
+        "blank_form_mode": blank_form_mode,
         "watermark_text": "사전 검토용 초안 (계약 효력 없음)",
         "is_valid": is_valid,
         "validation_msg": validation_msg,
@@ -564,8 +725,8 @@ def build_contract_context(form_data: dict[str, Any]) -> dict[str, Any]:
         "monthly_rent_comma": format_comma(monthly_rent) if monthly_rent > 0 else "",
         "monthly_rent_won": format_won(monthly_rent) if monthly_rent > 0 else "",
         "monthly_rent_day": clean_str(form_data.get("monthly_rent_day")),
-        "rent_pay_type": clean_str(form_data.get("rent_pay_type")) or "선불",
-        "vat_type": clean_str(form_data.get("vat_type")) or "부가가치세 별도",
+        "rent_pay_type": "" if blank_form_mode else (clean_str(form_data.get("rent_pay_type")) or "선불"),
+        "vat_type": "" if blank_form_mode else (clean_str(form_data.get("vat_type")) or "부가가치세 별도"),
         "management_fee": management_fee,
         "management_fee_kr": number_to_korean(management_fee, zero_text=""),
         "management_fee_comma": format_comma(management_fee) if management_fee > 0 else "",
@@ -581,7 +742,7 @@ def build_contract_context(form_data: dict[str, Any]) -> dict[str, Any]:
         "lease_end_date_kr": format_date_kr(lease_end_date, zero_pad=True),
         "lease_duration": lease_duration,
         "contract_date_kr": (
-            f"{contract_y}년 {contract_m}월 {contract_d}일" if contract_y else "    년   월   일"
+            f"{contract_y}년 {contract_m}월 {contract_d}일" if contract_y else "20    년    월    일"
         ),
         # ③ 특약사항 및 별지
         "full_clauses_text": full_clauses_text,

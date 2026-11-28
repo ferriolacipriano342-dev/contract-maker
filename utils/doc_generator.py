@@ -157,27 +157,33 @@ def _style_cell_text(
 
 
 def _docx_intro_and_articles(contract_type: str) -> tuple[str, str, list[str]]:
-    if contract_type == "land_sale":
+    if contract_type in ("land_sale", "farmland_sale"):
+        obj_name = "농지" if contract_type == "farmland_sale" else "토지"
         return (
-            "아래 토지에 대하여 매도인과 매수인은 상호 합의하에 다음과 같이 토지 매매계약을 체결한다.",
+            f"아래 {obj_name}에 대하여 매도인과 매수인은 상호 합의하에 다음과 같이 {obj_name} 매매계약을 체결한다.",
             "2. 거래금액 및 지급시기  제1조 [매매대금 및 지급방법] 매수인은 매매대금을 아래와 같이 지불하기로 한다.",
             [
                 "위 제1조의 매매대금은 개업공인중개사의 입회하에 지불하기로 한다.",
-                "제2조 [소유권 이전 및 토지 인도] 매도인은 잔금 수령과 동시에 소유권이전등기 서류를 교부하고 등기절차에 협력하며, 토지 인도일은 {{ handover_date_kr }}로 한다.",
+                f"제2조 [소유권 이전 및 {obj_name} 인도] 매도인은 잔금 수령과 동시에 소유권이전등기 서류를 교부하고 등기절차에 협력하며, {obj_name} 인도일은 {{{{ handover_date_kr }}}}로 한다.",
                 "제3조 [제한물권 등의 소멸] 매도인은 승계 합의된 융자금 외 저당권·지상권·지역권·압류 및 미납 제세공과금을 잔금일까지 제거하여 완전한 소유권을 이전한다.",
-                "제4조 [제세공과금 및 수익의 귀속] 토지 수익 귀속과 공과금·부담금 정산은 토지 인도일을 기준으로 하며, 지방세 납부의무는 지방세법 규정에 따른다.",
+                f"제4조 [제세공과금 및 수익의 귀속] {obj_name} 수익 귀속과 공과금·부담금 정산은 인도일을 기준으로 하며, 지방세 납부의무는 지방세법 규정에 따른다.",
                 "제5조 [계약의 해제] 중도금(없을 때는 잔금) 지급 전까지 매도인은 계약금 배액 상환, 매수인은 계약금 포기로 계약을 해제할 수 있다.",
                 "제6조 [채무불이행·손해배상·중개보수] 불이행 시 서면 최고 후 해제 및 계약금 기준 손해배상하며, 중개보수는 쌍방이 각각 지급하고 확인·설명서 및 공제증서 사본을 교부한다.",
             ],
         )
 
-    if contract_type == "real_estate_sale":
+    if contract_type in ("real_estate_sale", "apartment_sale", "commercial_sale"):
+        target_name = (
+            "아파트"
+            if contract_type == "apartment_sale"
+            else ("상가건물" if contract_type == "commercial_sale" else "부동산")
+        )
         return (
-            "아래 부동산에 대하여 매도인과 매수인은 합의하에 다음과 같이 매매계약을 체결한다.",
+            f"아래 {target_name}에 대하여 매도인과 매수인은 합의하에 다음과 같이 매매계약을 체결한다.",
             "2. 계약내용  제1조 [매매대금 및 지급시기] 매수인은 매매대금을 아래와 같이 지불하기로 한다.",
             [
                 "위 제1조의 매매대금은 개업공인중개사의 입회하에 지불하기로 한다.",
-                "제2조 [소유권 이전 등] 매도인은 잔금 수령과 동시에 소유권이전등기 서류를 교부하며, 부동산 인도일은 {{ handover_date_kr }}로 한다.",
+                f"제2조 [소유권 이전 등] 매도인은 잔금 수령과 동시에 소유권이전등기 서류를 교부하며, {target_name} 인도일은 {{{{ handover_date_kr }}}}로 한다.",
                 "제3조 [제한물권 등의 소멸] 매도인은 승계 합의된 권리 외 저당권·지상권·임차권 및 제세공과금 미납을 잔금일까지 제거하여 완전한 소유권을 이전한다.",
                 "제4조 [지방세 등] 부동산 수익 귀속과 제세공과금 부담은 인도일을 기준으로 하며, 지방세 납부의무는 지방세법 규정에 의한다.",
                 "제5조 [계약의 해제] 중도금(없을 때는 잔금) 지급 전까지 매도인은 계약금 배액 상환, 매수인은 계약금 포기로 계약을 해제할 수 있다.",
@@ -333,9 +339,17 @@ def create_docx_template(
             "1. 대상 점포 및 신규 임대차 조건 요약"
             if contract_type == "premium_rights"
             else (
-                "1. 토지의 표시"
-                if contract_type == "land_sale"
-                else ("1. 상가건물의 표시" if contract_type == "commercial_lease" else "1. 부동산의 표시")
+                "1. 농지의 표시"
+                if contract_type == "farmland_sale"
+                else (
+                    "1. 토지의 표시"
+                    if contract_type == "land_sale"
+                    else (
+                        "1. 상가건물의 표시"
+                        if contract_type in ("commercial_lease", "commercial_sale")
+                        else "1. 부동산의 표시"
+                    )
+                )
             )
         )
     )
@@ -349,7 +363,7 @@ def create_docx_template(
     a_rgb = pal["addr_rgb"]
     b_rgb = pal["body_rgb"]
 
-    if contract_type == "land_sale":
+    if contract_type in ("land_sale", "farmland_sale"):
         t1 = doc.add_table(rows=4, cols=4)
         _set_table_borders(t1, pal["outer_border"], pal["inner_border"])
         t1.cell(0, 1).merge(t1.cell(0, 3))
@@ -364,7 +378,7 @@ def create_docx_template(
         _style_cell_text(t1.cell(2, 2), "토지 현황", bold=True, align="center", shade=h_fill, rgb=l_rgb)
         _style_cell_text(t1.cell(2, 3), "{{ land_status }}", rgb=b_rgb)
         _style_cell_text(t1.cell(3, 0), "매 매 대 상", bold=True, align="center", shade=h_fill, rgb=l_rgb)
-        _style_cell_text(t1.cell(3, 1), "{{ lease_part if lease_part else '토지 전부' }}", bold=True, rgb=b_rgb)
+        _style_cell_text(t1.cell(3, 1), "{{ lease_part if lease_part else ('' if blank_form_mode else '토지 전부') }}", bold=True, rgb=b_rgb)
         _style_cell_text(t1.cell(3, 2), "평당 참고단가", bold=True, size_pt=7.2, align="center", shade=h_fill, rgb=l_rgb)
         _style_cell_text(t1.cell(3, 3), "{{ price_per_pyeong }}", align="right", rgb=b_rgb)
     elif contract_type == "nursing_home_transfer":
@@ -443,7 +457,7 @@ def create_docx_template(
         _style_cell_text(t1.cell(2, 4), "{{ building_use }}", rgb=b_rgb)
         _style_cell_text(t1.cell(2, 5), "면적", bold=True, size_pt=7.2, align="center", shade=h_fill, rgb=l_rgb)
         _style_cell_text(t1.cell(2, 6), "{{ building_area }} ㎡", align="right", rgb=b_rgb)
-        part_lbl = "매매대상" if contract_type == "real_estate_sale" else "임대할부분"
+        part_lbl = "매매대상" if contract_type in ("real_estate_sale", "apartment_sale", "commercial_sale") else "임대할부분"
         _style_cell_text(t1.cell(3, 0), part_lbl, bold=True, size_pt=7.2, align="center", shade=h_fill, rgb=l_rgb)
         _style_cell_text(t1.cell(3, 1), "{{ lease_part }}", bold=True, rgb=b_rgb)
         _style_cell_text(t1.cell(3, 5), "면적", bold=True, size_pt=7.2, align="center", shade=h_fill, rgb=l_rgb)
@@ -463,10 +477,10 @@ def create_docx_template(
         (meta["amount_label"], "ㅡ금 {{ deposit_kr }}", "원정 ({{ deposit_won }})", None, True, False),
         ("계 약 금", "ㅡ금 {{ down_payment_kr }}", "원정은 계약시에 지불하고 영수함.", "{{ down_receipt_person }} (인)", True, False),
     ]
-    if contract_type == "real_estate_sale":
+    if contract_type in ("real_estate_sale", "apartment_sale", "commercial_sale"):
         pay_rows.append(("융자승계", "ㅡ금 {{ loan_assumption_kr }}", "원정은 매수인이 금융기관 대출 채무를 승계함.", None, False, False))
         pay_rows.append(("보증금승계", "ㅡ금 {{ lease_deposit_assumption_kr }}", "원정은 현 임차인의 임대차보증금을 승계함.", None, False, False))
-    elif contract_type == "land_sale":
+    elif contract_type in ("land_sale", "farmland_sale"):
         pay_rows.append(("융자승계", "ㅡ금 {{ loan_assumption_kr }}", "원정은 매수인이 금융기관 근저당 채무를 승계함.", None, False, False))
 
     pay_rows.append(("중 도 금", "ㅡ금 {{ interim_payment_kr }}", "원정은 {{ interim_year }} 년 {{ interim_month }} 월 {{ interim_day }} 일에 지불하며,", None, False, False))

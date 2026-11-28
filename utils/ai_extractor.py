@@ -26,16 +26,20 @@ SECRETS_TOML_PATH = BASE_DIR / ".streamlit" / "secrets.toml"
 
 MAX_IMAGE_DIMENSION = 1024
 JPEG_QUALITY = 80
-DEFAULT_API_TIMEOUT_SECONDS = 30
+DEFAULT_API_TIMEOUT_SECONDS = 60
+RETRY_DELAY_SECONDS = 1.5
 MAX_OCR_OUTPUT_TOKENS = 1024
-MAX_FALLBACK_MODELS = 6
-GEMINI_OCR_MODEL = "gemini-3.8-flash"
-DEFAULT_FALLBACK_MODELS = [
-    "gemini-2.5-flash-lite",
+MAX_FALLBACK_MODELS = 8
+GEMINI_OCR_MODEL = "gemini-2.5-flash"
+PREFERRED_OCR_MODELS = [
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
-    "gemini-2.5-pro",
+    "gemini-2.5-flash-lite",
+    "gemini-3.8-flash",
     "gemini-flash-latest",
+    "gemini-2.5-pro",
 ]
+DEFAULT_FALLBACK_MODELS = PREFERRED_OCR_MODELS[1:]
 _EXCLUDED_MODEL_KEYWORDS = (
     "embed",
     "tts",
@@ -352,7 +356,7 @@ def extract_contract_fields_from_documents(
     timeout_seconds: int = DEFAULT_API_TIMEOUT_SECONDS,
     on_progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
-    """증빙서류(이미지/PDF)를 Pillow 전처리 후 Gemini API(30초 타임아웃)로 판독한다."""
+    """증빙서류(이미지/PDF)를 Pillow 전처리 후 Gemini API(60초 타임아웃·다중 모델 자동 우회)로 판독한다."""
     step_log: list[str] = []
 
     def _emit(msg: str) -> None:
@@ -432,7 +436,8 @@ def extract_contract_fields_from_documents(
 
     _emit(f"✅ 1) 이미지 보정 완료 ({attached_count}건, 전송 용량 {max(1, total_payload_bytes // 1024)}KB)")
 
-    # 2단계: 다중 모델 자동 우회(Fallback) 전송 — 1순위 gemini-3.8-flash, 실패 시 API 키 실제 가용 모델 자동 조회·전환
+    # 2단계: 고속 안정 모델 우선 + 다중 모델 자동 우회(Fallback) 전송
+    # (gemini-2.5-flash -> gemini-2.0-flash -> gemini-2.5-flash-lite -> gemini-3.8-flash 등)
     _emit(f"2) Gemini API({GEMINI_OCR_MODEL}) 전송 중... (최대 {timeout_seconds}초 대기)")
     started_at = time.monotonic()
 
@@ -465,18 +470,23 @@ def extract_contract_fields_from_documents(
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
 
-    def _is_fallback_trigger(exc: Exception) -> tuple[bool, str]:
+    def _is_fallback_trigger(exc: Exception) -> tuple[bool, str, bool]:
+        """재시도·우회 가능 오류 여부, 한글 사유 태그, 대기(sleep) 필요 여부를 반환한다."""
         msg = f"{type(exc).__name__}: {exc}".upper()
+        if "504" in msg or "DEADLINE_EXCEEDED" in msg or "DEADLINE EXCEEDED" in msg or "TIMEOUT" in msg or "TIMED OUT" in msg:
+            return True, "504 시간초과", True
         if "503" in msg or "UNAVAILABLE" in msg or "OVERLOADED" in msg:
-            return True, "503 혼잡"
-        if "429" in msg or "RESOURCE_EXHAUSTED" in msg or "RATE LIMIT" in msg:
-            return True, "429 한도초과"
+            return True, "503 혼잡", True
+        if "429" in msg or "RESOURCE_EXHAUSTED" in msg or "RATE LIMIT" in msg or "QUOTA" in msg:
+            return True, "429 한도초과", True
+        if "502" in msg or "BAD_GATEWAY" in msg or "500" in msg or "INTERNAL" in msg:
+            return True, "5xx 서버지연", True
         if "404" in msg or "NOT_FOUND" in msg or "NOT FOUND" in msg:
-            return True, "404 미지원"
-        return False, ""
+            return True, "404 미지원", False
+        return False, "", False
 
     def _discover_live_fallback_models(exclude: set[str]) -> list[str]:
-        """client.models.list()로 현재 API 키에서 실제 호출 가능한 gemini OCR 모델을 동적 조회한다."""
+        """client.models.list()로 현재 API 키에서 실제 호출 가능한 추가 gemini OCR 모델을 동적 조회한다."""
         discovered: list[str] = []
         try:
             def _list_models() -> list[Any]:
@@ -498,31 +508,28 @@ def extract_contract_fields_from_documents(
                 if short_name not in exclude and short_name not in discovered:
                     discovered.append(short_name)
         except Exception as list_exc:
-            _emit(f"ℹ️ 가용 모델 목록 조회 건너뜀({type(list_exc).__name__}) → 기본 후보 목록으로 우회")
+            _emit(f"ℹ️ 추가 가용 모델 목록 조회 건너뜀({type(list_exc).__name__})")
 
-        # OCR 속도 우선순위 정렬: flash-lite -> flash -> pro (최신 버전 우선)
         def _rank(name: str) -> tuple[int, str]:
             lo = name.lower()
-            if "flash-lite" in lo:
+            if "2.5-flash" in lo and "lite" not in lo:
                 tier = 0
-            elif "flash" in lo:
+            elif "2.0-flash" in lo:
                 tier = 1
-            elif "pro" in lo:
+            elif "flash-lite" in lo:
                 tier = 2
-            else:
+            elif "flash" in lo:
                 tier = 3
+            elif "pro" in lo:
+                tier = 4
+            else:
+                tier = 5
             return (tier, name)
 
         discovered.sort(key=_rank)
+        return discovered[:MAX_FALLBACK_MODELS]
 
-        # 동적 조회 목록 우선 + 기본 예비 후보 보완 (중복 제거)
-        merged: list[str] = []
-        for candidate in discovered + DEFAULT_FALLBACK_MODELS:
-            if candidate not in exclude and candidate not in merged:
-                merged.append(candidate)
-        return merged[:MAX_FALLBACK_MODELS]
-
-    candidate_queue: list[str] = [GEMINI_OCR_MODEL]
+    candidate_queue: list[str] = list(PREFERRED_OCR_MODELS)
     tried_models: set[str] = set()
     attempt_errors: list[str] = []
     discovered_once = False
@@ -553,29 +560,36 @@ def extract_contract_fields_from_documents(
             m_elapsed = time.monotonic() - model_start
             attempt_errors.append(f"{model_name}: TIMEOUT({m_elapsed:.1f}초)")
             if not first_fail_reason:
-                first_fail_reason = "타임아웃"
-            _emit(f"⏱️ {model_name} 응답 시간 초과({m_elapsed:.1f}초) → 다음 모델로 우회 검토")
-            if not discovered_once:
+                first_fail_reason = "시간초과"
+            if idx >= len(candidate_queue) and not discovered_once:
                 discovered_once = True
                 extras = _discover_live_fallback_models(tried_models)
                 if extras:
-                    _emit("📋 가용 대체 모델 확보: " + ", ".join(extras))
+                    _emit("📋 추가 가용 모델 확보: " + ", ".join(extras))
                     candidate_queue.extend(extras)
+            if idx < len(candidate_queue):
+                _emit(f"⏱️ {model_name} 응답 시간 초과({m_elapsed:.1f}초) → {RETRY_DELAY_SECONDS:.1f}초 후 다음 모델로 자동 재시도합니다.")
+                time.sleep(RETRY_DELAY_SECONDS)
             continue
         except Exception as exc:
-            should_fallback, reason_tag = _is_fallback_trigger(exc)
+            should_fallback, reason_tag, should_wait = _is_fallback_trigger(exc)
             attempt_errors.append(f"{model_name}: {reason_tag or type(exc).__name__} ({exc})")
             if should_fallback:
                 if not first_fail_reason:
                     first_fail_reason = reason_tag
-                _emit(f"⚠️ {model_name} {reason_tag} → 대체 모델로 즉시 우회합니다.")
-                if not discovered_once:
+                if idx >= len(candidate_queue) and not discovered_once:
                     discovered_once = True
-                    _emit("🔍 현재 API 키에서 실제 호출 가능한 Gemini 모델 목록 조회 중...")
+                    _emit("🔍 현재 API 키에서 추가 호출 가능한 Gemini 모델 목록 조회 중...")
                     extras = _discover_live_fallback_models(tried_models)
                     if extras:
-                        _emit("📋 가용 대체 모델 확보: " + ", ".join(extras))
+                        _emit("📋 추가 가용 모델 확보: " + ", ".join(extras))
                         candidate_queue.extend(extras)
+                if idx < len(candidate_queue):
+                    if should_wait:
+                        _emit(f"⚠️ {model_name} {reason_tag} → {RETRY_DELAY_SECONDS:.1f}초 후 다음 모델로 자동 재시도합니다.")
+                        time.sleep(RETRY_DELAY_SECONDS)
+                    else:
+                        _emit(f"⚠️ {model_name} {reason_tag} → 다음 모델로 즉시 전환합니다.")
                 continue
             # 인증 오류(401/403) 등 우회 불가능한 치명 오류는 즉시 중단
             result["error_type"] = "API_ERROR"
@@ -587,7 +601,7 @@ def extract_contract_fields_from_documents(
         result["error_type"] = "ALL_MODELS_FAILED"
         result["message"] = (
             f"시도한 모든 Gemini 모델({len(tried_models)}개: {', '.join(tried_models)})이 "
-            "혼잡(503/429), 미지원(404) 또는 타임아웃으로 실패했습니다. 잠시 후 다시 시도해 주세요."
+            "시간초과(504), 혼잡(503/429) 또는 미지원(404)으로 실패했습니다. 잠시 후 다시 시도해 주세요."
         )
         result["raw_response_text"] = "\n".join(attempt_errors)
         return result
@@ -659,3 +673,133 @@ def extract_contract_fields_from_documents(
         f"증빙서류 {attached_count}건에서 총 {len(mapped)}개 항목을 판독해 입력란에 자동 반영했습니다.{switch_note} ({elapsed:.1f}초)"
     )
     return result
+
+
+class GeneratedLegalClauses(BaseModel):
+    """AI 맞춤 법률 특약 생성 결과 스키마."""
+
+    clauses: list[str] = Field(
+        default_factory=list,
+        description="명확하고 법적 효력이 분명한 한국어 계약서 특약 조항 1~2개 리스트 (번호 접두어 제외)",
+    )
+
+
+def generate_legal_clauses_from_text(
+    user_note: str,
+    contract_type_label: str,
+    api_key: str,
+    party1_label: str = "매도인",
+    party2_label: str = "매수인",
+    timeout_seconds: int = DEFAULT_API_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """사용자가 구어체로 입력한 현장 합의 내용을 Gemini API(다중 모델 자동 우회·재시도)로 정식 법률 특약 1~2개로 변환한다."""
+    note = (user_note or "").strip()
+    if not note:
+        return {"ok": False, "clauses": [], "message": "변환할 현장 합의 내용을 먼저 입력해 주세요."}
+    if not api_key:
+        return {
+            "ok": False,
+            "clauses": [],
+            "message": "GEMINI_API_KEY가 설정되지 않았습니다. 좌측 사이드바 하단 [🔑 Gemini API 키 설정]에서 키를 저장해 주세요.",
+        }
+
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError as exc:
+        return {"ok": False, "clauses": [], "message": f"`google-genai` 패키지가 설치되어 있지 않습니다: {exc}"}
+
+    prompt = (
+        f"당신은 대한민국 부동산·요양시설 전문 변호사 겸 베테랑 공인중개사입니다.\n"
+        f"현재 작성 중인 계약서 유형은 [{contract_type_label}]이며 당사자는 '{party1_label}'과 '{party2_label}'입니다.\n"
+        f"아래 사용자의 구어체 현장 합의 메모를 법적 분쟁 예방에 효과적이고 명확한 계약서 정식 특약사항 문구 1~2개로 다듬어 JSON으로 반환하세요.\n\n"
+        f"[규칙]\n"
+        f"1. 문장 앞에 '1.', '2.' 같은 번호나 불릿은 붙이지 말고 깔끔한 조항 문장만 작성하세요.\n"
+        f"2. 날짜나 금액이 언급되면 가능하면 '{{잔금일}}', '{{계약일}}', '{{매매대금}}', '{{보증금}}' 같은 스마트 변수를 자연스럽게 활용하거나 사용자가 명시한 숫자를 정확히 유지하세요.\n"
+        f"3. 책임 주체({party1_label}/{party2_label}), 이행 기한, 미이행 시 처리(해제·비용 정산 등)를 간결하고 명확하게 기재하세요.\n"
+        f"4. 반드시 1개 또는 2개의 조항만 반환하세요.\n\n"
+        f"[사용자 현장 합의 메모]\n{note}"
+    )
+
+    def _call_clause_model(model_name: str, limit_sec: float) -> Any:
+        http_opts = types.HttpOptions(
+            timeout=int(limit_sec * 1000),
+            retry_options=types.HttpRetryOptions(attempts=1),
+        )
+        client = genai.Client(api_key=api_key, http_options=http_opts)
+        return client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=768,
+                response_mime_type="application/json",
+                response_schema=GeneratedLegalClauses,
+                http_options=http_opts,
+            ),
+        )
+
+    def _run_timeout(fn: Callable[[], Any], limit_sec: float) -> Any:
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(fn)
+        try:
+            return future.result(timeout=max(1.0, limit_sec))
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+    attempt_errors: list[str] = []
+    used_model = ""
+    response = None
+
+    for idx, model_name in enumerate(PREFERRED_OCR_MODELS):
+        try:
+            response = _run_timeout(lambda m=model_name: _call_clause_model(m, float(timeout_seconds)), float(timeout_seconds))
+            used_model = model_name
+            break
+        except FuturesTimeoutError:
+            attempt_errors.append(f"{model_name}: TIMEOUT")
+            if idx + 1 < len(PREFERRED_OCR_MODELS):
+                time.sleep(RETRY_DELAY_SECONDS)
+            continue
+        except Exception as exc:
+            msg_u = f"{type(exc).__name__}: {exc}".upper()
+            attempt_errors.append(f"{model_name}: {exc}")
+            is_retryable = any(
+                k in msg_u
+                for k in ("504", "DEADLINE", "TIMEOUT", "503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "502", "500", "404", "NOT_FOUND")
+            )
+            if is_retryable and idx + 1 < len(PREFERRED_OCR_MODELS):
+                if "404" not in msg_u and "NOT_FOUND" not in msg_u:
+                    time.sleep(RETRY_DELAY_SECONDS)
+                continue
+            return {
+                "ok": False,
+                "clauses": [],
+                "message": f"AI 특약 생성 중 오류가 발생했습니다({model_name}): {type(exc).__name__}: {exc}",
+            }
+
+    if response is None:
+        return {
+            "ok": False,
+            "clauses": [],
+            "message": "모든 Gemini 모델이 일시적 혼잡·시간초과로 응답하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        }
+
+    try:
+        parsed = _parse_json_strict(response.text or "")
+        raw_list = parsed.get("clauses", [])
+        cleaned = [
+            re.sub(r"^\s*\d+[\.\)]\s*", "", str(item).strip())
+            for item in raw_list
+            if str(item).strip()
+        ][:2]
+        if not cleaned:
+            return {"ok": False, "clauses": [], "message": "AI가 유효한 특약 문구를 생성하지 못했습니다. 내용을 조금 더 구체적으로 입력해 주세요."}
+        return {
+            "ok": True,
+            "clauses": cleaned,
+            "used_model": used_model,
+            "message": f"✨ AI가 {len(cleaned)}개의 정식 법률 특약을 생성해 추가했습니다. [{used_model}]",
+        }
+    except Exception as exc:
+        return {"ok": False, "clauses": [], "message": f"AI 응답 파싱 실패: {type(exc).__name__}: {exc}"}
