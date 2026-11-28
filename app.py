@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 from datetime import date, timedelta
@@ -914,7 +915,7 @@ def _enhance_live_preview_html(printable_html: str) -> str:
       <button type="button" id="btnZoomFit" title="화면 폭에 맞춤">화면맞춤</button>
       <button type="button" id="btnZoom100" title="A4 100% 크기로 크게 보기">크게 100%</button>
       <button type="button" id="btnZoom130" title="A4 130% 크기로 더 크게 보기">더 크게 130%</button>
-      <button type="button" class="print-btn" onclick="window.print()">🖨️ 인쇄</button>
+      <button type="button" id="btnSmartPrint" class="print-btn">🖨️ 인쇄</button>
     </div>"""
     enhanced = enhanced.replace(
         '<button onclick="window.print()">🖨️ 인쇄 / PDF로 저장</button>',
@@ -922,9 +923,16 @@ def _enhance_live_preview_html(printable_html: str) -> str:
     )
 
     # .preview-wrapper를 독립 4방향 스크롤 뷰포트로 감싸 100%/130% 확대 시에도 상단 툴바 고정 + 부드러운 좌우/상하 스와이프 보장
+    # 인앱 브라우저(네이버/카톡) 인쇄 차단 시 즉시 노출되는 안내 배너도 툴바 바로 아래에 배치
+    notice_banner_html = (
+        '<div id="printFallbackNotice" class="print-fallback-notice no-print">'
+        '<span>⚠️ 크롬 브라우저로 열거나 위 <strong>\'📄 PDF 바로 저장\'</strong> 버튼을 눌러주세요.</span>'
+        '<button type="button" id="btnClosePrintNotice" class="notice-close-btn">닫기</button>'
+        '</div>'
+    )
     enhanced = enhanced.replace(
         '<div class="preview-wrapper">',
-        '<div id="previewScrollViewport" class="preview-scroll-viewport"><div class="preview-wrapper">',
+        notice_banner_html + '<div id="previewScrollViewport" class="preview-scroll-viewport"><div class="preview-wrapper">',
         1,
     )
 
@@ -984,6 +992,34 @@ def _enhance_live_preview_html(printable_html: str) -> str:
           background: #2563eb !important;
           border-color: #3b82f6 !important;
         }
+        .print-fallback-notice {
+          display: none;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 8px 12px;
+          background: #fef3c7;
+          color: #92400e;
+          border-bottom: 1.5px solid #f59e0b;
+          font-size: 13px;
+          font-weight: 700;
+          line-height: 1.4;
+          flex-shrink: 0;
+        }
+        .print-fallback-notice.visible {
+          display: flex !important;
+        }
+        .notice-close-btn {
+          background: #92400e !important;
+          color: #ffffff !important;
+          border: none !important;
+          border-radius: 5px !important;
+          padding: 3px 9px !important;
+          font-size: 11.5px !important;
+          font-weight: 700 !important;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
         .preview-scroll-viewport {
           flex: 1 1 auto !important;
           width: 100% !important;
@@ -1028,7 +1064,7 @@ def _enhance_live_preview_html(printable_html: str) -> str:
     if "</head>" in enhanced:
         enhanced = enhanced.replace("</head>", extra_css, 1)
 
-    zoom_script = """</div>
+    zoom_script = r"""</div>
   <script>
     (function () {
       var STORE_KEY = 'contract_preview_zoom_v2';
@@ -1107,11 +1143,82 @@ def _enhance_live_preview_html(printable_html: str) -> str:
         });
       }
 
+      function showPrintFallbackNotice(customMsg) {
+        var box = document.getElementById('printFallbackNotice');
+        if (box) {
+          if (customMsg) {
+            var sp = box.querySelector('span');
+            if (sp) sp.innerHTML = customMsg;
+          }
+          box.classList.add('visible');
+        }
+      }
+
+      function handleSmartPrint() {
+        var ua = navigator.userAgent || '';
+        var isInApp = /KAKAOTALK|NAVER|Line\/|Instagram|FBAN|FBAV|DaumApps/i.test(ua);
+        var fallbackHtml = "⚠️ 네이버·카카오톡 등 앱 내부에서는 인쇄가 차단될 수 있습니다. <strong>크롬 브라우저로 열거나 위 '📄 PDF 바로 저장' 버튼을 눌러주세요.</strong>";
+
+        if (isInApp) {
+          showPrintFallbackNotice(fallbackHtml);
+          try {
+            resetForPrint();
+            window.print();
+          } catch (e) {}
+          return;
+        }
+
+        // 크롬/PC 등 일반 브라우저: 새 창으로 깨끗한 A4 문서만 열어 window.print() 즉시 실행
+        try {
+          var printWin = window.open('', '_blank');
+          if (!printWin || printWin.closed) {
+            showPrintFallbackNotice("⚠️ 팝업/인쇄가 차단되었습니다. <strong>크롬 브라우저로 열거나 위 '📄 PDF 바로 저장' 버튼을 눌러주세요.</strong>");
+            try {
+              resetForPrint();
+              window.print();
+            } catch (e2) {}
+            return;
+          }
+          var docClone = document.documentElement.cloneNode(true);
+          docClone.querySelectorAll('.no-print, script').forEach(function (el) { el.remove(); });
+          docClone.querySelectorAll('.page-scale-slot').forEach(function (slot) {
+            slot.style.width = '100%';
+            slot.style.height = 'auto';
+          });
+          docClone.querySelectorAll('.a4-page').forEach(function (pg) {
+            pg.style.transform = 'none';
+          });
+          var printHtml = '<!DOCTYPE html>' + docClone.outerHTML + '<script>window.onload=function(){window.focus();window.print();};<\/script>';
+          printWin.document.open();
+          printWin.document.write(printHtml);
+          printWin.document.close();
+        } catch (err) {
+          showPrintFallbackNotice(fallbackHtml);
+          try {
+            resetForPrint();
+            window.print();
+          } catch (e3) {}
+        }
+      }
+
       function bindZoomControls() {
         var bOut = document.getElementById('btnZoomOut');
         var bFit = document.getElementById('btnZoomFit');
         var b100 = document.getElementById('btnZoom100');
         var b130 = document.getElementById('btnZoom130');
+        var bPrint = document.getElementById('btnSmartPrint');
+        var bCloseNotice = document.getElementById('btnClosePrintNotice');
+        if (bPrint && !bPrint.dataset.bound) {
+          bPrint.dataset.bound = '1';
+          bPrint.addEventListener('click', handleSmartPrint);
+        }
+        if (bCloseNotice && !bCloseNotice.dataset.bound) {
+          bCloseNotice.dataset.bound = '1';
+          bCloseNotice.addEventListener('click', function () {
+            var box = document.getElementById('printFallbackNotice');
+            if (box) box.classList.remove('visible');
+          });
+        }
         if (bOut) {
           bOut.addEventListener('click', function () {
             var current = (zoomMode === 'fit') ? computeFitScale(794) : customScale;
@@ -1165,6 +1272,13 @@ def _enhance_live_preview_html(printable_html: str) -> str:
     if script_start != -1 and script_end != -1:
         enhanced = enhanced[:script_start] + zoom_script + enhanced[script_end + len("</script>"):]
     return enhanced
+
+
+@st.cache_data(max_entries=16, show_spinner=False)
+def _generate_pdf_cached(html_digest: str, context_payload: dict[str, Any]) -> tuple[bytes | None, str]:
+    """동일 계약서 내용에 대한 반복 PDF 변환을 캐싱해 입력 반응 속도를 유지한다."""
+    _ = html_digest
+    return generate_pdf(context_payload)
 
 
 @st.cache_data
@@ -3579,15 +3693,17 @@ def main() -> None:
             dl_cols = st.columns(3 if has_user_hwpx else 2)
 
             with dl_cols[0]:
-                pdf_bytes, pdf_msg = generate_pdf(context)
+                html_digest = hashlib.sha256(printable_html.encode("utf-8")).hexdigest()[:16]
+                pdf_bytes, pdf_msg = _generate_pdf_cached(html_digest, context)
                 if pdf_bytes is not None:
                     st.download_button(
-                        "📄 PDF 다운로드 (A4)",
+                        "📄 PDF 바로 저장 (.pdf)",
                         data=pdf_bytes,
                         file_name=f"{base_filename}.pdf",
                         mime="application/pdf",
                         use_container_width=True,
                         type="primary",
+                        help=f"스마트폰·PC 모두 즉시 인쇄·공유 가능한 정식 A4 PDF 파일 ({pdf_msg})",
                     )
                 else:
                     st.download_button(
